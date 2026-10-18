@@ -6,9 +6,11 @@ import './ui/studioPanel.js';
 import './ui/exports.js';
 import { initShell } from './ui/shell.js';
 import { initAlgiersPanel } from './ui/algiersPanel.js';
+import { initCityPanel } from './ui/cityPanel.js';
 import { later } from './app/build.js';
 
 initShell();
 const ui = initAlgiersPanel();
+initCityPanel();
 later();
 ui.regenPBR(1500);
