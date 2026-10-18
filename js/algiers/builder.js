@@ -9,6 +9,7 @@ import { groundFloor } from './parts/ground.js';
 import { roof } from './parts/roof.js';
 import { ornament } from './parts/ornament.js';
 import { street, facadeLife } from './parts/street.js';
+import { placeProps } from './parts/props.js';
 
 // Orchestrates one Algiers building from a design state (see schema.js) and returns a
 // merged THREE.Group plus measurements for lighting bounds and the status line.
@@ -41,7 +42,7 @@ export function buildAlgiers(st) {
   core(ctx, st, lay, st.ground === 'arcade' ? st.arcDepth : 0);
   ornament(ctx);
   const peak = roof(ctx);
-  street(ctx);
+  placeProps(ctx, street(ctx));
   const group = ctx.finish();
   return { group, lay, peak, tris: ctx.tris, meshes: group.children.length };
 }

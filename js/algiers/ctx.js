@@ -42,6 +42,8 @@ export class Ctx {
     const M = new THREE.Matrix4().makeBasis(new THREE.Vector3(tx, 0, tz), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-tz, 0, tx)).setPosition((a.x + b.x) / 2, 0, (a.z + b.z) / 2);
     M.len = l; return M;
   }
+  /** car paint material per colour (cached in MT) */
+  paintMat(hex) { const k = 'p_paint_' + hex.slice(1); if (!MT[k]) MT[k] = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.3, metalness: 0.55 }); return k; }
   finish() {
     const group = new THREE.Group(); group.name = 'algiers';
     for (const m in this.acc) {
