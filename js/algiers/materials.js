@@ -12,10 +12,18 @@ let made = false, lastWeather = -1;
 const ironTex = {};
 
 /** materials whose UVs are re-projected from world position (metres / scale) */
-export const WORLD_UV = Object.fromEntries(['a_wall', 'a_ground', 'a_trim', 'a_pave', 'a_asph', 'a_zinc', 'a_zel', 'a_curb', 'a_metal', 'a_dome', 'a_wood', 'p_wood', 'p_conc', 'p_metal', 'p_bark', 'p_pot', 'p_paint'].map((k) => [k, 1]));
+export const WORLD_UV = Object.fromEntries(['a_wall', 'a_ground', 'a_trim', 'a_pave', 'a_asph', 'a_zinc', 'a_zel', 'a_curb', 'a_terr', 'a_metal', 'a_dome', 'a_wood', 'p_wood', 'p_conc', 'p_metal', 'p_bark', 'p_pot', 'p_paint'].map((k) => [k, 1]));
 /** metres covered by one texture tile for the procedural fallbacks (PBR roles set their own scale) */
 const LEGACY_TILE = { a_wall: 3, a_ground: 2, a_trim: 1.5, a_pave: 1.2, a_asph: 4, a_zel: 0.5, a_curb: 1.5 };
 export function setRepeat(m, tile) { for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap, m.aoMap]) if (t) t.repeat.set(1 / tile, 1 / tile); }
+
+/** PBR maps carry roughness in the albedo alpha (2 samplers instead of 5, see pbr/library.js).
+ *  Must be installed before LevelLighting.patch() wraps onBeforeCompile. Canvas maps have alpha 1. */
+function packedRough(m) {
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n#ifdef USE_MAP\nroughnessFactor *= texture2D( map, vMapUv ).a;\n#endif'); };
+  m.customProgramCacheKey = () => 'pbr-packed-rough';
+  return m;
+}
 
 export function ensureMaterials() {
   if (made) return; made = true;
@@ -50,6 +58,8 @@ export function ensureMaterials() {
   MT.p_metal = std({ color: 0x23272b, roughness: 0.45, metalness: 0.7 }); MT.p_bark = std({ color: 0x5a4636, roughness: 1 });
   MT.p_pot = std({ color: 0xb4623c, roughness: 0.8 }); MT.p_paint = std({ color: 0xffffff, roughness: 0.28, metalness: 0.55 });
   MT.p_tire = std({ color: 0x111213, roughness: 0.9 }); MT.p_leaf = std({ color: 0x5c9c44, roughness: 0.75, side: DB });
+  MT.a_terr = std({ color: 0xe9e4da, roughness: 0.9 });
+  for (const k of ['a_wall', 'a_ground', 'a_trim', 'a_zinc', 'a_terr', 'a_pave', 'a_curb', 'a_asph', 'a_zel', 'a_wood', 'p_wood', 'a_metal', 'p_metal', 'p_conc', 'p_pot', 'p_bark']) packedRough(MT[k]);
   for (const k in LEGACY_TILE) setRepeat(MT[k], LEGACY_TILE[k]);
   for (let i = 0; i < TX.SIGN_N; i++) MT['a_sign' + i] = std({ map: TX.tex(TX.sign(i)), roughness: 0.6, emissive: 0x111111 });
   ['#f4f1ea', '#2e6fb5', '#c63b3b', '#f0c63a', '#5b8f4e', '#e88fb1'].forEach((c, i) => { MT['a_cloth' + i] = std({ color: c, roughness: 0.95, side: DB }); });
@@ -63,7 +73,7 @@ export function applyLook(st) {
   MT.a_wall.color.set(st.wallColor); MT.a_trim.color.set(st.trimColor); MT.a_ground.color.set(st.groundColor);
   MT.a_shut.color.set(st.shutterColor); MT.a_roller.color.set(st.shutterColor);
   MT.a_rail.color.set(st.ironColor); MT.a_iron.color.set(st.ironColor);
-  MT.a_zinc.color.set(st.roofColor); MT.a_dome.color.set(st.domeColor); MT.a_awn.color.set(st.awningColor);
+  MT.a_zinc.color.set(st.roofColor); MT.a_terr.color.set(st.terraceColor || '#e9e4da'); MT.a_dome.color.set(st.domeColor); MT.a_awn.color.set(st.awningColor);
   MT.a_frame.color.set(st.frameColor);
   if (MT.a_rail.map !== ironTex[st.iron]) { MT.a_rail.map = ironTex[st.iron] || ironTex.classic; MT.a_rail.needsUpdate = true; }
   if (!st.pbrOn && Math.abs(lastWeather - st.weather) > 1e-3) {
