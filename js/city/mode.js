@@ -9,6 +9,10 @@ import { bboxQuery, fetchOverpass, parseOSM, toGeo } from './osm.js';
 import { MT } from '../studio/materials.js';
 import { ensureMaterials, applyLook } from '../algiers/materials.js';
 import { design } from '../algiers/design.js';
+import { Ctx } from '../algiers/ctx.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { addCityBuilding } from './building.js';
+import { addCityRoad } from './road.js';
 
 export const CITY = {
   data: null,            // { origin, radius, roads, buildings }
@@ -21,7 +25,6 @@ export const CITY = {
 };
 
 const demAt = (x, z) => (CITY.dem ? CITY.dem.at(x, z) : 0);
-const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 /* ---------- materials: the studio's shared MT set, fed by the PBR generator ---------- */
 // wall/ground/trim/terr/pave/asph etc. are the exact materials applyPBR() writes its maps to,
@@ -33,133 +36,48 @@ function mats() {
   return { terrain: terrainMat, proxy: MT.a_wall };
 }
 
-/* ---------- geometry accumulators ---------- */
+/** the Algiers Designer's current look, adapted for city-scale buildings: flat terrace roof
+ *  (no mansard/dome, which assume a rectangular W×D footprint) and no per-building fake street
+ *  (OSM road geometry already covers that). */
+function cityStyle() {
+  const st = design.state;
+  return { ...st, roof: 'terrace', dome: 'none', life: { ...st.life, street: false, barriers: false } };
+}
+
 function mesh(pos, uv, material) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv && uv.length ? uv : worldUVFor(pos), 2));
+  if (uv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   geo.computeVertexNormals();
   const m = new THREE.Mesh(geo, material); m.castShadow = m.receiveShadow = true;
   return m;
 }
-// triplanar world-space UVs (metres) — same convention as the designer's worldUV()
-function worldUVFor(pos) {
-  const uv = new Float32Array(pos.length / 3 * 2);
-  for (let t = 0; t < pos.length; t += 9) {
-    const ax = [pos[t], pos[t + 1], pos[t + 2]], bx = [pos[t + 3], pos[t + 4], pos[t + 5]], cx = [pos[t + 6], pos[t + 7], pos[t + 8]];
-    const ux = bx[0] - ax[0], uy = bx[1] - ax[1], uz = bx[2] - ax[2], vx = cx[0] - ax[0], vy = cx[1] - ax[1], vz = cx[2] - ax[2];
-    const nx = Math.abs(uy * vz - uz * vy), ny = Math.abs(uz * vx - ux * vz), nz = Math.abs(ux * vy - uy * vx);
-    for (let k = 0; k < 3; k++) {
-      const p = [pos[t + k * 3], pos[t + k * 3 + 1], pos[t + k * 3 + 2]], o = (t / 3 + k) * 2;
-      if (nx > ny && nx > nz) { uv[o] = p[2]; uv[o + 1] = p[1]; } else if (ny > nz) { uv[o] = p[0]; uv[o + 1] = p[2]; } else { uv[o] = p[0]; uv[o + 1] = p[1]; }
-    }
-  }
-  return uv;
+
+/* ---------- building/road generation: the real Algiers builder, fed by OSM footprints ---------- */
+// Each building/road gets its own Ctx (fresh façade layout + seed), then its baked meshes are
+// merged into one mesh per material for the whole sector — same draw-call budget as before.
+function mergeInto(bucket, grp) {
+  grp.updateMatrixWorld(true);
+  for (const me of grp.children) { me.geometry.applyMatrix4(me.matrixWorld); (bucket[me.name] || (bucket[me.name] = [])).push(me.geometry); }
 }
 
-/* ---------- facade builder (windows, shutters, iron balconies, shops, cornices) ---------- */
-const FLOOR_H = 3.1, GF_H = 4.3;
-class Acc {
-  constructor() { this.m = {}; }
-  get(mat) { return this.m[mat] || (this.m[mat] = { pos: [], uv: [] }); }
-  /** axis-aligned facade quad: origin o, facade dir a (unit), up height h, width w; facing n */
-  quad(mat, o, a, w, h, uvs) {
-    const A = this.get(mat), [x, y, z] = o;
-    const p2 = [x + a[0] * w, y, z + a[1] * w];
-    A.pos.push(x, y, z, p2[0], y, p2[2], p2[0], y + h, p2[2], x, y, z, p2[0], y + h, p2[2], x, y + h, z);
-    const [u, v] = uvs || [w, h]; // default: world metres (PBR repeat handles tiling)
-    A.uv.push(0, 0, u, 0, u, v, 0, 0, u, v, 0, v);
+function buildSectorGeometry(sec, baseSt) {
+  const bucket = {}; let tris = 0;
+  for (const b of sec.buildings) {
+    const base = Math.min(...b.poly.map((p) => demAt(p.x, p.z))) - 0.6;
+    const ctx = new Ctx(baseSt, { path: { faces: [], L: 0 } });
+    try { addCityBuilding(ctx, b.poly, b.levels, b.id, baseSt); } catch (e) { console.warn('city building', b.id, e); continue; }
+    const grp = ctx.finish(); tris += ctx.tris;
+    grp.position.y = base;
+    mergeInto(bucket, grp);
   }
-  /** horizontal quad strip (slab top) at height y: from o along a (w wide) and n (d deep) */
-  slab(mat, o, a, n, w, d, y) {
-    const A = this.get(mat), [x, , z] = o;
-    const p = (i, j) => [x + a[0] * w * i + n[0] * d * j, y, z + a[1] * w * i + n[1] * d * j];
-    const [q0, q1, q2, q3] = [p(0, 0), p(1, 0), p(1, 1), p(0, 1)];
-    A.pos.push(...q0, ...q1, ...q2, ...q0, ...q2, ...q3);
-    A.uv.push(0, 0, w, 0, w, d, 0, 0, w, d, 0, d);
+  for (const r of sec.roads) {
+    const ctx = new Ctx(baseSt, { path: { faces: [], L: 0 } });
+    try { addCityRoad(ctx, r.pts, r.width, demAt); } catch (e) { console.warn('city road', e); continue; }
+    const grp = ctx.finish(); tris += ctx.tris;
+    mergeInto(bucket, grp);
   }
-}
-
-function buildingGeo(b, acc) {
-  const base = Math.min(...b.poly.map((p) => demAt(p.x, p.z))) - 0.6;
-  const floors = Math.max(1, b.levels), top = base + 0.6 + GF_H + (floors - 1) * FLOOR_H, parapet = top + 0.85;
-  const gfTop = base + 0.6 + GF_H;
-  for (let i = 0; i < b.poly.length; i++) {
-    const p1 = b.poly[i], p2 = b.poly[(i + 1) % b.poly.length];
-    const len = Math.hypot(p2.x - p1.x, p2.z - p1.z); if (len < 0.3) continue;
-    const a = [(p2.x - p1.x) / len, (p2.z - p1.z) / len], n = [-a[1], a[0]]; // outward
-    const W = acc.get('a_wall'), G = acc.get('a_ground');
-    const wallQuad = (A, y0, y1) => {
-      A.pos.push(p1.x, y0, p1.z, p2.x, y0, p2.z, p2.x, y1, p2.z, p1.x, y0, p1.z, p2.x, y1, p2.z, p1.x, y1, p1.z);
-      A.uv.push(0, y0, len, y0, len, y1, 0, y0, len, y1, 0, y1);
-    };
-    wallQuad(G, base, gfTop);                 // stone ground floor
-    wallQuad(W, gfTop, parapet);              // plaster upper floors + parapet
-    if (len < 2.6) continue;                  // too narrow for openings
-    const cols = Math.max(1, Math.floor(len / 3.4)), pitch = len / cols;
-    const off = (k, d) => [p1.x + a[0] * d + n[0] * k, 0, p1.z + a[1] * d + n[1] * k];
-    // cornice strip per floor line + parapet cap
-    for (let f = 1; f <= floors; f++) {
-      const y = gfTop + (f - 1) * FLOOR_H - 0.22;
-      const o = off(0.07, 0); o[1] = y;
-      acc.quad('a_trim', o, a, len, 0.26);
-    }
-    const oc = off(0.09, 0); oc[1] = top + 0.62; acc.quad('a_trim', oc, a, len, 0.24);
-    for (let c = 0; c < cols; c++) {
-      const cx = (c + 0.5) * pitch, rW = hash(b.id * 13 + c);
-      // ground floor: shop roller or arched doorway band
-      if (len > 4 && floors >= 2) {
-        const sw = Math.min(2.6, pitch - 0.9), so = off(0.04, cx - sw / 2); so[1] = base + 0.75;
-        acc.quad(rW < 0.72 ? 'a_roller' : 'a_dark', so, a, sw, 2.7, [1, 1]);
-        const fo = off(0.06, cx - sw / 2 - 0.12); fo[1] = base + 0.68;
-        acc.quad('a_trim', fo, a, 0.14, 2.9); const fo2 = off(0.06, cx + sw / 2 - 0.02); fo2[1] = base + 0.68; acc.quad('a_trim', fo2, a, 0.14, 2.9);
-      }
-      // upper floors: window + frame + shutters/rail
-      for (let f = 1; f < floors; f++) {
-        const wy = gfTop + (f - 1) * FLOOR_H + 0.95, r = hash(b.id * 7 + c * 31 + f);
-        const ww = 1.1, wh = 1.55, wx = cx - ww / 2;
-        const frame = off(0.03, wx - 0.1); frame[1] = wy - 0.08; acc.quad('a_frame', frame, a, ww + 0.2, wh + 0.2);
-        const glass = off(0.05, wx); glass[1] = wy;
-        acc.quad(r < 0.3 ? 'a_shut' : 'a_dark', glass, a, ww, wh, [1, 1]); // some closed shutters
-        if (r >= 0.3 && r < 0.62) { // open shutters beside the window
-          const s1 = off(0.07, wx - 0.5); s1[1] = wy; acc.quad('a_shut', s1, a, 0.45, wh, [0.5, 1]);
-          const s2 = off(0.07, wx + ww + 0.05); s2[1] = wy; acc.quad('a_shut', s2, a, 0.45, wh, [0.5, 1]);
-        }
-        // wrought-iron rail + slab (continuous look on some floors)
-        const bal = hash(b.id * 3 + f) < 0.55 ? [cx - ww / 2 - 0.25, ww + 0.5] : [0.25, len - 0.5];
-        if (c === 0 || bal[1] < len - 0.4) {
-          const rail = off(0.3, bal[0]); rail[1] = wy - 0.12;
-          acc.quad('a_rail', rail, a, bal[1], 0.92, [bal[1] / 1.2, 1]);
-          const slab = off(0, bal[0]); acc.slab('a_trim', slab, a, n, bal[1], 0.34, wy - 0.14);
-        }
-      }
-    }
-  }
-  // roof: terrasse slab + inner face of the parapet
-  const tris = THREE.ShapeUtils.triangulateShape(b.poly.map((p) => new THREE.Vector2(p.x, p.z)), []);
-  const R = acc.get(hash(b.id + 3) < 0.25 ? 'a_zinc' : 'a_terr');
-  for (const [i1, i2, i3] of tris) for (const idx of [i1, i3, i2]) {
-    const p = b.poly[idx]; R.pos.push(p.x, top, p.z); R.uv.push(p.x, p.z);
-  }
-}
-
-function roadGeo(r, acc) {
-  const strip = (half, lift, mat) => {
-    const row = [], A = acc.get(mat);
-    for (let i = 0; i < r.pts.length; i++) {
-      const a = r.pts[Math.max(0, i - 1)], b = r.pts[Math.min(r.pts.length - 1, i + 1)], p = r.pts[i];
-      let dx = b.x - a.x, dz = b.z - a.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-      const nx = dz, nz = -dx, y = demAt(p.x, p.z) + lift;
-      row.push([p.x + nx * half, y, p.z + nz * half, p.x - nx * half, y, p.z - nz * half]);
-    }
-    for (let i = 0; i < row.length - 1; i++) {
-      const [ax, ay, az, bx, by, bz] = row[i], [cx2, cy, cz2, dx2, dy2, dz2] = row[i + 1];
-      A.pos.push(ax, ay, az, bx, by, bz, dx2, dy2, dz2, ax, ay, az, dx2, dy2, dz2, cx2, cy, cz2);
-      A.uv.push(ax, az, bx, bz, dx2, dz2, ax, az, dx2, dz2, cx2, cz2);
-    }
-  };
-  strip(r.width / 2 + 2.2, 0.07, 'a_pave');   // sidewalk/curb apron
-  strip(r.width / 2, 0.14, 'a_asph');         // carriageway
+  return { bucket, tris };
 }
 
 function labelSprite(num, x, y, z) {
@@ -199,10 +117,18 @@ function assignSectors() {
 function buildSectorGroup(sec) {
   const g = new THREE.Group(); g.name = 'sector-' + sec.id;
   mats();
-  const acc = new Acc();
-  for (const b of sec.buildings) buildingGeo(b, acc);
-  for (const r of sec.roads) roadGeo(r, acc);
-  for (const [key, A] of Object.entries(acc.m)) if (A.pos.length && MT[key]) g.add(mesh(A.pos, A.uv, MT[key]));
+  const baseSt = cityStyle();
+  const { bucket, tris } = buildSectorGeometry(sec, baseSt);
+  for (const [key, list] of Object.entries(bucket)) {
+    if (!list.length || !MT[key]) continue;
+    const geo = mergeGeometries(list, false);
+    list.forEach((x) => x.dispose());
+    if (!geo) continue;
+    const me = new THREE.Mesh(geo, MT[key]);
+    me.castShadow = !/^a_(pave|asph|mark|ceil)$/.test(key); me.receiveShadow = true; me.name = key;
+    g.add(me);
+  }
+  g.userData.tris = tris;
   const peak = sec.buildings.reduce((m, b) => Math.max(m, demAt(b.cx, b.cz) + b.h), demAt(sec.cx, sec.cz) + 6);
   sec.label = labelSprite(sec.id, sec.cx, peak + 16, sec.cz);
   sec.label.visible = CITY.flags.labels;
