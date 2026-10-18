@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { footprint, samples } from '../geom/path.js';
+import { footprint, samples, insetPoly } from '../geom/path.js';
 import { sweep } from '../geom/sweep.js';
 import { spandrelShape, archRingShape, extrude, archCurve } from '../geom/shapes.js';
 import { wallBand, WALL_T } from './walls.js';
@@ -48,7 +48,7 @@ function arcades(ctx) {
     if (st.zellige) ctx.add(extrude(archRingShape(st.arch, a + 0.18, yS, 0.12), 0.02).translate(0, 0, 0.02), 'a_zel', M);
   }
   // shopfront wall set back by the arcade depth (its own inset outline)
-  const inner = footprint(st.W, st.D, st.corner, st.cornerSize, st.arcDepth, new Set(MAIN_FACES[st.sides]));
+  const inner = path.poly ? insetPoly(path, st.arcDepth) : footprint(st.W, st.D, st.corner, st.cornerSize, st.arcDepth, new Set(MAIN_FACES[st.sides]));
   for (const f of inner.faces) {
     if (!f.main) continue;
     const outer = path.faces.find((x) => x.name === f.name); if (!outer) continue;

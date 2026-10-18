@@ -38,7 +38,7 @@ export function street(ctx) {
 }
 
 /** cast-iron candelabra with five lanterns (Bd Che Guevara / Rue Larbi Ben M'hidi type) */
-function lamp(ctx, M) {
+export function lamp(ctx, M) {
   const y = 0.15, D = 'a_dark';
   const base = new THREE.LatheGeometry(LATHE.poleBase, 12); base.translate(0, y, 0); ctx.add(base, D, M);
   ctx.add(new THREE.CylinderGeometry(0.05, 0.075, 4.0, 10).translate(0, y + 3.0, 0), D, M);

@@ -90,3 +90,60 @@ export function polygon(path, arcStep = 0.15) {
   }
   return pts;
 }
+
+/**
+ * Footprint built directly from an arbitrary closed polygon in world (x,z) — e.g. an OSM
+ * building outline — instead of the rectangle+corner recipe above. Winding is normalized so
+ * the outward-normal convention (n = (-tz, tx)) matches footprint() above, and every edge is
+ * a decorated ("main") face, since dense city blocks show a façade on every side.
+ * The returned path is flagged `poly: true`: ground.js/roof.js use insetPoly() instead of
+ * rebuilding a rectangle when they need an inset copy (roof deck, arcade shopfront wall).
+ */
+export function footprintFromPolygon(pts) {
+  let P = pts.filter((p, i) => i === 0 || Math.hypot(p.x - pts[i - 1].x, p.z - pts[i - 1].z) > 0.3);
+  if (P.length > 2 && Math.hypot(P[0].x - P[P.length - 1].x, P[0].z - P[P.length - 1].z) < 0.3) P = P.slice(0, -1);
+  if (P.length < 3) return { faces: [], L: 0, corner: 'sharp', k: 0, hw: 0, hd: 0, inset: 0, poly: true };
+  let area = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; area += a.x * b.z - b.x * a.z; }
+  if (area > 0) P = P.slice().reverse(); // footprint() above winds so signed area < 0; match it
+  const faces = []; let s = 0;
+  for (let i = 0; i < P.length; i++) {
+    const a = P[i], b = P[(i + 1) % P.length], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
+    if (len < 0.35) continue;
+    faces.push({ name: 'f' + i, kind: 'line', a: [a.x, a.z], b: [b.x, b.z], len, t: [dx / len, dz / len], s0: s, s1: s + len, main: true });
+    s += len;
+  }
+  return { faces, L: s, corner: 'sharp', k: 0, hw: 0, hd: 0, inset: 0, poly: true };
+}
+
+function lineIntersect(a1, a2, b1, b2) {
+  const d1x = a2[0] - a1[0], d1z = a2[1] - a1[1], d2x = b2[0] - b1[0], d2z = b2[1] - b1[1];
+  const l1 = Math.hypot(d1x, d1z) || 1, l2 = Math.hypot(d2x, d2z) || 1;
+  const den = d1x * d2z - d1z * d2x;
+  if (Math.abs(den) < 0.08 * l1 * l2) return null; // near-straight joint: naive offset endpoints are already close
+  const t = ((b1[0] - a1[0]) * d2z - (b1[1] - a1[1]) * d2x) / den;
+  return [a1[0] + d1x * t, a1[1] + d1z * t];
+}
+
+/** shrink an all-line, polygon-based footprint inward by `d`, re-mitering corners, keeping the
+ *  same face count/order/names (so callers can map outer↔inner faces by name like footprint()'s
+ *  own inset does). Only used for `poly` footprints; the rectangle case keeps using footprint().
+ *  Real OSM corners can be very acute or nearly degenerate, so a plain line-intersection miter
+ *  would occasionally shoot off to an enormous point; any miter farther than a few metres from
+ *  the original corner is rejected and that corner is left as a small bevel instead. */
+export function insetPoly(path, d) {
+  const off = path.faces.map((f) => { const nx = -f.t[1], nz = f.t[0]; return { name: f.name, a: [f.a[0] - nx * d, f.a[1] - nz * d], b: [f.b[0] - nx * d, f.b[1] - nz * d] }; });
+  const n = off.length;
+  for (let i = 0; i < n; i++) {
+    const cur = off[i], nxt = off[(i + 1) % n], p = lineIntersect(cur.a, cur.b, nxt.a, nxt.b);
+    const corner = path.faces[i].b;
+    if (p && Math.hypot(p[0] - corner[0], p[1] - corner[1]) < Math.max(6, d * 4)) { cur.b = p; nxt.a = p; }
+  }
+  const faces = []; let s = 0;
+  for (const f of off) {
+    const dx = f.b[0] - f.a[0], dz = f.b[1] - f.a[1], len = Math.hypot(dx, dz);
+    if (len < 1e-4) continue;
+    faces.push({ name: f.name, kind: 'line', a: f.a, b: f.b, len, t: [dx / len, dz / len], s0: s, s1: s + len, main: true });
+    s += len;
+  }
+  return { faces, L: s, corner: 'sharp', k: 0, hw: 0, hd: 0, inset: (path.inset || 0) + d, poly: true };
+}
