@@ -9,5 +9,6 @@ import { initAlgiersPanel } from './ui/algiersPanel.js';
 import { later } from './app/build.js';
 
 initShell();
-initAlgiersPanel();
+const ui = initAlgiersPanel();
 later();
+ui.regenPBR(1500);

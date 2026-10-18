@@ -1,5 +1,8 @@
 import { h, range, stepper, seg, select, toggle, color, chips, cards } from './controls.js';
-import { GROUPS, LOOK_KEYS, CROWNS, BALS, DEFAULTS } from '../algiers/schema.js';
+import { GROUPS, LOOK_KEYS, PBR_KEYS, CROWNS, BALS, DEFAULTS } from '../algiers/schema.js';
+import { ROLES } from '../pbr/roles.js';
+import { MATS } from '../pbr/labGen.js';
+import { applyPBR, rescalePBR, roleMaps } from '../pbr/manager.js';
 import { TYPES, typeIcon, programFor } from '../algiers/types.js';
 import { design } from '../algiers/design.js';
 import { IRON, ironPreview } from '../algiers/textures.js';
@@ -16,7 +19,7 @@ const IRON_NAMES = { classic: 'كلاسيكي', nouveau: 'آرت نوفو', deco
 const pick = (a, R = Math.random) => a[Math.floor(R() * a.length)];
 
 export function initAlgiersPanel(root = document.getElementById('alg')) {
-  const W = {}, st = () => design.state;
+  const W = {}, st = () => design.state; let prog = null, pt = 0;
 
   const commit = (k, v, live = false) => {
     const p = { [k]: v };
@@ -52,7 +55,8 @@ export function initAlgiersPanel(root = document.getElementById('alg')) {
       else if (c.t === 'select') w = select(c, on);
       else if (c.t === 'toggle') w = toggle(c, on);
       else if (c.t === 'color') w = color(c, on);
-      else if (c.t === 'chips') w = chips(c, (o) => commit('life', o));
+      else if (c.t === 'chips') w = chips(c, (o) => commit(c.k, o));
+      else if (c.t === 'pbrRoles') w = pbrCtl(c);
       else if (c.t === 'types') w = cards({ ...c, cls: 'types' }, Object.entries(TYPES).map(([v, t]) => ({ v, label: t.name, sub: t.where, img: typeIcon(v) })), on);
       else if (c.t === 'iron') w = cards({ ...c, cls: 'iron' }, IRON.map((v) => ({ v, label: IRON_NAMES[v], img: ironPreview(v, '#888') })), on);
       else if (c.t === 'seed') w = seedCtl(c, on);
@@ -68,6 +72,28 @@ export function initAlgiersPanel(root = document.getElementById('alg')) {
     const n = h('input', { type: 'number', min: 1, max: 99999, class: 'num', onchange: () => on(Math.max(1, +n.value | 0)) });
     const el = h('div', { class: 'ctl', 'data-k': c.k, 'data-label': c.label }, h('label', { class: 'ctl-l' }, c.label), h('div', { class: 'ctl-w' }, n, h('button', { type: 'button', class: 'dice', title: 'بذرة جديدة', onclick: () => on(1 + Math.floor(Math.random() * 9999)) }, '🎲')));
     return { el, set: (v) => { n.value = v; } };
+  }
+
+  // PBR roles: material preset per role, progress bar, per-role map export
+  function pbrCtl(c) {
+    prog = h('div', { class: 'pbar', hidden: true }, h('i'), h('span'));
+    const rows = Object.entries(ROLES).map(([role, r]) => {
+      const sel = h('select', { onchange: () => design.set({ pbrMats: { ...st().pbrMats, [role]: sel.value } }) }, r.opts.map((k) => h('option', { value: k }, MATS[k].label)));
+      const dl = h('button', { type: 'button', class: 'dl', title: 'تنزيل خرائط Albedo / Normal / ORM', onclick: () => exportRole(role) }, '⬇');
+      return { role, sel, el: h('div', { class: 'pbr-r' }, h('label', {}, r.label), sel, dl) };
+    });
+    const el = h('div', { class: 'ctl ctl-col', 'data-k': c.k, 'data-label': 'خامات PBR مواد الخرسانة الحجر الأسفلت الخشب المعدن' }, h('div', { class: 'pbr' }, rows.map((r) => r.el)), prog, h('div', { class: 'hint' }, 'الخرائط تُولَّد بمولّد Facade Bake Lab (Albedo + Normal + Roughness + AO) وتتكرر بلا فواصل.'));
+    return { el, set: () => rows.forEach((r) => { r.sel.value = st().pbrMats[r.role] || ROLES[r.role].def; }) };
+  }
+  function exportRole(role) {
+    const m = roleMaps(role); if (!m) { alert('الخامة لم تُولَّد بعد.'); return; }
+    for (const [n, cv] of [['albedo', m.albedo], ['normal', m.normal], ['orm', m.orm]]) cv.toBlob((b) => { const a = h('a', { href: URL.createObjectURL(b), download: `${role}_${st().pbrMats[role]}_${n}.png` }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); });
+  }
+  function regenPBR(delay = 250) {
+    clearTimeout(pt); pt = setTimeout(async () => {
+      const bar = prog; const upd = (p, label) => { if (!bar) return; bar.hidden = p >= 1; bar.firstChild.style.width = Math.round(p * 100) + '%'; bar.lastChild.textContent = label ? `توليد ${label}… ${Math.round(p * 100)}%` : ''; };
+      const done = await applyPBR(st(), upd); if (done !== false || !st().pbrOn) ll.taa.reset(); upd(1, '');
+    }, delay);
   }
 
   // floor-by-floor programme: balcony type + window crown for each upper floor
@@ -127,9 +153,12 @@ export function initAlgiersPanel(root = document.getElementById('alg')) {
 
   design.subscribe((patch) => {
     sync(); W.program && W.program.set();
-    const keys = Object.keys(patch);
-    if (keys.every((k) => LOOK_KEYS.has(k))) { applyLook(st()); ll.taa.reset(); return; }
-    if (S.mode === 'alg') later();
+    const keys = Object.keys(patch), geo = keys.filter((k) => !LOOK_KEYS.has(k) && !PBR_KEYS.has(k));
+    if (keys.some((k) => LOOK_KEYS.has(k))) { applyLook(st()); ll.taa.reset(); }
+    if (keys.includes('weather') || keys.some((k) => PBR_KEYS.has(k) && k !== 'pbrScale')) regenPBR();
+    else if (keys.includes('pbrScale')) { rescalePBR(st()); ll.taa.reset(); }
+    if (geo.length && S.mode === 'alg') later();
   });
   sync(); W.program && W.program.set();
+  return { regenPBR };
 }
