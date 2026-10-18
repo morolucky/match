@@ -6,6 +6,9 @@ import { cam, ll, oc } from '../scene/scene.js';
 import { S } from '../core/state.js';
 import { L } from '../lighting/layers.js';
 import { bboxQuery, fetchOverpass, parseOSM, toGeo } from './osm.js';
+import { MT } from '../studio/materials.js';
+import { ensureMaterials, applyLook } from '../algiers/materials.js';
+import { design } from '../algiers/design.js';
 
 export const CITY = {
   data: null,            // { origin, radius, roads, buildings }
@@ -20,79 +23,129 @@ export const CITY = {
 const demAt = (x, z) => (CITY.dem ? CITY.dem.at(x, z) : 0);
 const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
-/* ---------- shared materials ---------- */
-let MATS = null;
-function facadeTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-  g.fillStyle = '#ece5d8'; g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(${150 + Math.random() * 40 | 0},${140 + Math.random() * 40 | 0},${125 + Math.random() * 40 | 0},0.06)`; g.fillRect(Math.random() * 256, Math.random() * 256, 3, 3); }
-  g.fillStyle = '#d9d0bf'; g.fillRect(0, 0, 256, 10);          // cornice band (top of each floor)
-  g.fillStyle = 'rgba(90,80,65,.25)'; g.fillRect(0, 10, 256, 3);
-  // window reveal + frame
-  g.fillStyle = 'rgba(70,62,50,.28)'; g.fillRect(66, 52, 124, 174);
-  g.fillStyle = '#e3dccb'; g.fillRect(72, 58, 112, 164);
-  g.fillStyle = '#28313b'; g.fillRect(80, 66, 96, 148);
-  g.strokeStyle = 'rgba(210,225,240,.35)'; g.lineWidth = 3;
-  g.beginPath(); g.moveTo(86, 200); g.lineTo(130, 80); g.stroke();
-  g.fillStyle = '#e3dccb'; g.fillRect(124, 66, 8, 148); g.fillRect(80, 134, 96, 8);
-  // shutters
-  g.fillStyle = '#9fb3bd'; g.fillRect(52, 62, 16, 152); g.fillRect(188, 62, 16, 152);
-  g.strokeStyle = 'rgba(40,50,60,.4)'; g.lineWidth = 1;
-  for (let y = 68; y < 210; y += 7) { g.beginPath(); g.moveTo(53, y); g.lineTo(67, y); g.moveTo(189, y); g.lineTo(203, y); g.stroke(); }
-  // wrought-iron balcony rail
-  g.strokeStyle = '#1d1f22'; g.lineWidth = 3; g.strokeRect(58, 196, 140, 56);
-  g.lineWidth = 2; for (let x = 66; x < 196; x += 11) { g.beginPath(); g.moveTo(x, 198); g.lineTo(x, 250); g.stroke(); }
-  g.beginPath(); g.moveTo(58, 224); g.lineTo(198, 224); g.stroke();
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  return t;
-}
+/* ---------- materials: the studio's shared MT set, fed by the PBR generator ---------- */
+// wall/ground/trim/terr/pave/asph etc. are the exact materials applyPBR() writes its maps to,
+// so the city automatically shares the designer's generated خامات.
+let terrainMat = null;
 function mats() {
-  if (MATS) return MATS;
-  MATS = {
-    wall: new THREE.MeshStandardMaterial({ map: facadeTexture(), vertexColors: true, roughness: 0.82, metalness: 0 }),
-    roof: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }),
-    asphalt: new THREE.MeshStandardMaterial({ color: 0x33343a, roughness: 0.96, metalness: 0 }),
-    pave: new THREE.MeshStandardMaterial({ color: 0x9b9489, roughness: 0.92, metalness: 0 }),
-    terrain: new THREE.MeshStandardMaterial({ color: 0x8d8577, roughness: 0.97, metalness: 0 }),
-    proxy: new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.9, metalness: 0 }),
-  };
-  return MATS;
+  ensureMaterials(); applyLook(design.state); // same خامات + ألوان as the designer
+  if (!terrainMat) terrainMat = new THREE.MeshStandardMaterial({ color: 0x8d8577, roughness: 0.97, metalness: 0 });
+  return { terrain: terrainMat, proxy: MT.a_wall };
 }
 
 /* ---------- geometry accumulators ---------- */
-function mesh(pos, uv, col, material) {
+function mesh(pos, uv, material) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  if (uv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  if (col) geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv && uv.length ? uv : worldUVFor(pos), 2));
   geo.computeVertexNormals();
   const m = new THREE.Mesh(geo, material); m.castShadow = m.receiveShadow = true;
   return m;
 }
-
-function buildingGeo(b, wallA, roofA) {
-  const base = Math.min(...b.poly.map((p) => demAt(p.x, p.z))) - 0.6, top = base + 0.6 + b.h;
-  const tint = 0.9 + hash(b.id) * 0.13, t2 = tint * (0.97 + hash(b.id + 7) * 0.05);
-  for (let i = 0; i < b.poly.length; i++) {
-    const p1 = b.poly[i], p2 = b.poly[(i + 1) % b.poly.length];
-    const len = Math.hypot(p2.x - p1.x, p2.z - p1.z); if (len < 0.3) continue;
-    const u1 = 0, u2 = Math.max(1, Math.round(len / 3)), v2 = b.levels;
-    const quad = [p1.x, base, p1.z, p2.x, base, p2.z, p2.x, top, p2.z, p1.x, base, p1.z, p2.x, top, p2.z, p1.x, top, p1.z];
-    wallA.pos.push(...quad);
-    wallA.uv.push(u1, 0, u2, 0, u2, v2, u1, 0, u2, v2, u1, v2);
-    for (let k = 0; k < 6; k++) wallA.col.push(tint, tint, t2);
+// triplanar world-space UVs (metres) — same convention as the designer's worldUV()
+function worldUVFor(pos) {
+  const uv = new Float32Array(pos.length / 3 * 2);
+  for (let t = 0; t < pos.length; t += 9) {
+    const ax = [pos[t], pos[t + 1], pos[t + 2]], bx = [pos[t + 3], pos[t + 4], pos[t + 5]], cx = [pos[t + 6], pos[t + 7], pos[t + 8]];
+    const ux = bx[0] - ax[0], uy = bx[1] - ax[1], uz = bx[2] - ax[2], vx = cx[0] - ax[0], vy = cx[1] - ax[1], vz = cx[2] - ax[2];
+    const nx = Math.abs(uy * vz - uz * vy), ny = Math.abs(uz * vx - ux * vz), nz = Math.abs(ux * vy - uy * vx);
+    for (let k = 0; k < 3; k++) {
+      const p = [pos[t + k * 3], pos[t + k * 3 + 1], pos[t + k * 3 + 2]], o = (t / 3 + k) * 2;
+      if (nx > ny && nx > nz) { uv[o] = p[2]; uv[o + 1] = p[1]; } else if (ny > nz) { uv[o] = p[0]; uv[o + 1] = p[2]; } else { uv[o] = p[0]; uv[o + 1] = p[1]; }
+    }
   }
-  const tris = THREE.ShapeUtils.triangulateShape(b.poly.map((p) => new THREE.Vector2(p.x, p.z)), []);
-  const rc = hash(b.id + 3) < 0.45 ? [0.55, 0.33, 0.24] : [0.62, 0.6, 0.56]; // tiled vs flat concrete
-  for (const [a, bb, c] of tris) {
-    for (const idx of [a, c, bb]) { const p = b.poly[idx]; roofA.pos.push(p.x, top, p.z); roofA.col.push(...rc); }
+  return uv;
+}
+
+/* ---------- facade builder (windows, shutters, iron balconies, shops, cornices) ---------- */
+const FLOOR_H = 3.1, GF_H = 4.3;
+class Acc {
+  constructor() { this.m = {}; }
+  get(mat) { return this.m[mat] || (this.m[mat] = { pos: [], uv: [] }); }
+  /** axis-aligned facade quad: origin o, facade dir a (unit), up height h, width w; facing n */
+  quad(mat, o, a, w, h, uvs) {
+    const A = this.get(mat), [x, y, z] = o;
+    const p2 = [x + a[0] * w, y, z + a[1] * w];
+    A.pos.push(x, y, z, p2[0], y, p2[2], p2[0], y + h, p2[2], x, y, z, p2[0], y + h, p2[2], x, y + h, z);
+    const [u, v] = uvs || [w, h]; // default: world metres (PBR repeat handles tiling)
+    A.uv.push(0, 0, u, 0, u, v, 0, 0, u, v, 0, v);
+  }
+  /** horizontal quad strip (slab top) at height y: from o along a (w wide) and n (d deep) */
+  slab(mat, o, a, n, w, d, y) {
+    const A = this.get(mat), [x, , z] = o;
+    const p = (i, j) => [x + a[0] * w * i + n[0] * d * j, y, z + a[1] * w * i + n[1] * d * j];
+    const [q0, q1, q2, q3] = [p(0, 0), p(1, 0), p(1, 1), p(0, 1)];
+    A.pos.push(...q0, ...q1, ...q2, ...q0, ...q2, ...q3);
+    A.uv.push(0, 0, w, 0, w, d, 0, 0, w, d, 0, d);
   }
 }
 
-function roadGeo(r, asA, pvA) {
-  const strip = (half, lift, out) => {
-    const row = [];
+function buildingGeo(b, acc) {
+  const base = Math.min(...b.poly.map((p) => demAt(p.x, p.z))) - 0.6;
+  const floors = Math.max(1, b.levels), top = base + 0.6 + GF_H + (floors - 1) * FLOOR_H, parapet = top + 0.85;
+  const gfTop = base + 0.6 + GF_H;
+  for (let i = 0; i < b.poly.length; i++) {
+    const p1 = b.poly[i], p2 = b.poly[(i + 1) % b.poly.length];
+    const len = Math.hypot(p2.x - p1.x, p2.z - p1.z); if (len < 0.3) continue;
+    const a = [(p2.x - p1.x) / len, (p2.z - p1.z) / len], n = [-a[1], a[0]]; // outward
+    const W = acc.get('a_wall'), G = acc.get('a_ground');
+    const wallQuad = (A, y0, y1) => {
+      A.pos.push(p1.x, y0, p1.z, p2.x, y0, p2.z, p2.x, y1, p2.z, p1.x, y0, p1.z, p2.x, y1, p2.z, p1.x, y1, p1.z);
+      A.uv.push(0, y0, len, y0, len, y1, 0, y0, len, y1, 0, y1);
+    };
+    wallQuad(G, base, gfTop);                 // stone ground floor
+    wallQuad(W, gfTop, parapet);              // plaster upper floors + parapet
+    if (len < 2.6) continue;                  // too narrow for openings
+    const cols = Math.max(1, Math.floor(len / 3.4)), pitch = len / cols;
+    const off = (k, d) => [p1.x + a[0] * d + n[0] * k, 0, p1.z + a[1] * d + n[1] * k];
+    // cornice strip per floor line + parapet cap
+    for (let f = 1; f <= floors; f++) {
+      const y = gfTop + (f - 1) * FLOOR_H - 0.22;
+      const o = off(0.07, 0); o[1] = y;
+      acc.quad('a_trim', o, a, len, 0.26);
+    }
+    const oc = off(0.09, 0); oc[1] = top + 0.62; acc.quad('a_trim', oc, a, len, 0.24);
+    for (let c = 0; c < cols; c++) {
+      const cx = (c + 0.5) * pitch, rW = hash(b.id * 13 + c);
+      // ground floor: shop roller or arched doorway band
+      if (len > 4 && floors >= 2) {
+        const sw = Math.min(2.6, pitch - 0.9), so = off(0.04, cx - sw / 2); so[1] = base + 0.75;
+        acc.quad(rW < 0.72 ? 'a_roller' : 'a_dark', so, a, sw, 2.7, [1, 1]);
+        const fo = off(0.06, cx - sw / 2 - 0.12); fo[1] = base + 0.68;
+        acc.quad('a_trim', fo, a, 0.14, 2.9); const fo2 = off(0.06, cx + sw / 2 - 0.02); fo2[1] = base + 0.68; acc.quad('a_trim', fo2, a, 0.14, 2.9);
+      }
+      // upper floors: window + frame + shutters/rail
+      for (let f = 1; f < floors; f++) {
+        const wy = gfTop + (f - 1) * FLOOR_H + 0.95, r = hash(b.id * 7 + c * 31 + f);
+        const ww = 1.1, wh = 1.55, wx = cx - ww / 2;
+        const frame = off(0.03, wx - 0.1); frame[1] = wy - 0.08; acc.quad('a_frame', frame, a, ww + 0.2, wh + 0.2);
+        const glass = off(0.05, wx); glass[1] = wy;
+        acc.quad(r < 0.3 ? 'a_shut' : 'a_dark', glass, a, ww, wh, [1, 1]); // some closed shutters
+        if (r >= 0.3 && r < 0.62) { // open shutters beside the window
+          const s1 = off(0.07, wx - 0.5); s1[1] = wy; acc.quad('a_shut', s1, a, 0.45, wh, [0.5, 1]);
+          const s2 = off(0.07, wx + ww + 0.05); s2[1] = wy; acc.quad('a_shut', s2, a, 0.45, wh, [0.5, 1]);
+        }
+        // wrought-iron rail + slab (continuous look on some floors)
+        const bal = hash(b.id * 3 + f) < 0.55 ? [cx - ww / 2 - 0.25, ww + 0.5] : [0.25, len - 0.5];
+        if (c === 0 || bal[1] < len - 0.4) {
+          const rail = off(0.3, bal[0]); rail[1] = wy - 0.12;
+          acc.quad('a_rail', rail, a, bal[1], 0.92, [bal[1] / 1.2, 1]);
+          const slab = off(0, bal[0]); acc.slab('a_trim', slab, a, n, bal[1], 0.34, wy - 0.14);
+        }
+      }
+    }
+  }
+  // roof: terrasse slab + inner face of the parapet
+  const tris = THREE.ShapeUtils.triangulateShape(b.poly.map((p) => new THREE.Vector2(p.x, p.z)), []);
+  const R = acc.get(hash(b.id + 3) < 0.25 ? 'a_zinc' : 'a_terr');
+  for (const [i1, i2, i3] of tris) for (const idx of [i1, i3, i2]) {
+    const p = b.poly[idx]; R.pos.push(p.x, top, p.z); R.uv.push(p.x, p.z);
+  }
+}
+
+function roadGeo(r, acc) {
+  const strip = (half, lift, mat) => {
+    const row = [], A = acc.get(mat);
     for (let i = 0; i < r.pts.length; i++) {
       const a = r.pts[Math.max(0, i - 1)], b = r.pts[Math.min(r.pts.length - 1, i + 1)], p = r.pts[i];
       let dx = b.x - a.x, dz = b.z - a.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
@@ -101,11 +154,12 @@ function roadGeo(r, asA, pvA) {
     }
     for (let i = 0; i < row.length - 1; i++) {
       const [ax, ay, az, bx, by, bz] = row[i], [cx2, cy, cz2, dx2, dy2, dz2] = row[i + 1];
-      out.pos.push(ax, ay, az, bx, by, bz, dx2, dy2, dz2, ax, ay, az, dx2, dy2, dz2, cx2, cy, cz2);
+      A.pos.push(ax, ay, az, bx, by, bz, dx2, dy2, dz2, ax, ay, az, dx2, dy2, dz2, cx2, cy, cz2);
+      A.uv.push(ax, az, bx, bz, dx2, dz2, ax, az, dx2, dz2, cx2, cz2);
     }
   };
-  strip(r.width / 2 + 2.2, 0.07, pvA);   // sidewalk/curb apron
-  strip(r.width / 2, 0.14, asA);         // carriageway
+  strip(r.width / 2 + 2.2, 0.07, 'a_pave');   // sidewalk/curb apron
+  strip(r.width / 2, 0.14, 'a_asph');         // carriageway
 }
 
 function labelSprite(num, x, y, z) {
@@ -144,14 +198,11 @@ function assignSectors() {
 
 function buildSectorGroup(sec) {
   const g = new THREE.Group(); g.name = 'sector-' + sec.id;
-  const wallA = { pos: [], uv: [], col: [] }, roofA = { pos: [], col: [] }, asA = { pos: [] }, pvA = { pos: [] };
-  for (const b of sec.buildings) buildingGeo(b, wallA, roofA);
-  for (const r of sec.roads) roadGeo(r, asA, pvA);
-  const M = mats();
-  if (wallA.pos.length) g.add(mesh(wallA.pos, wallA.uv, wallA.col, M.wall));
-  if (roofA.pos.length) g.add(mesh(roofA.pos, null, roofA.col, M.roof));
-  if (pvA.pos.length) g.add(mesh(pvA.pos, null, null, M.pave));
-  if (asA.pos.length) g.add(mesh(asA.pos, null, null, M.asphalt));
+  mats();
+  const acc = new Acc();
+  for (const b of sec.buildings) buildingGeo(b, acc);
+  for (const r of sec.roads) roadGeo(r, acc);
+  for (const [key, A] of Object.entries(acc.m)) if (A.pos.length && MT[key]) g.add(mesh(A.pos, A.uv, MT[key]));
   const peak = sec.buildings.reduce((m, b) => Math.max(m, demAt(b.cx, b.cz) + b.h), demAt(sec.cx, sec.cz) + 6);
   sec.label = labelSprite(sec.id, sec.cx, peak + 16, sec.cz);
   sec.label.visible = CITY.flags.labels;
@@ -173,7 +224,7 @@ function buildProxy(sec) {
   };
   for (const b of sec.buildings) boxed(b);
   const g = new THREE.Group();
-  if (pos.length) g.add(mesh(pos, null, null, mats().proxy));
+  if (pos.length) g.add(mesh(pos, null, mats().proxy));
   g.visible = false;
   return g;
 }
