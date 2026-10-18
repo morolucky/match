@@ -21,12 +21,12 @@ function assign(role, key, tex, scale) {
   const r = ROLES[role], tile = r.tile * scale;
   for (const k of r.mt) {
     const m = MT[k]; if (!m) continue;
-    m.map = tex.map; m.normalMap = tex.normalMap; m.roughnessMap = tex.orm; m.metalnessMap = tex.orm; m.aoMap = tex.orm;
-    m.roughness = 1; m.metalness = r.metal ? 1 : 0; m.aoMapIntensity = 0.85; m.normalScale = new THREE.Vector2(1, 1);
+    m.map = tex.map; m.normalMap = tex.normalMap; m.roughnessMap = m.metalnessMap = m.aoMap = null;
+    m.roughness = 1; m.metalness = r.metal || 0; m.normalScale = new THREE.Vector2(1, 1);
     if (!r.tint) m.color.set(0xffffff);
     setRepeat(m, tile); m.needsUpdate = true;
   }
-  if (role === 'gnd') { for (const t of [tex.map, tex.normalMap, tex.orm]) t.repeat.set(400 / tile, 400 / tile); const g = ground.material; g.map = tex.map; g.normalMap = tex.normalMap; g.roughnessMap = tex.orm; g.aoMap = null; g.color.set(0xb4b2ae); g.roughness = 1; g.needsUpdate = true; }
+  if (role === 'gnd') { for (const t of [tex.map, tex.normalMap]) t.repeat.set(400 / tile, 400 / tile); const g = ground.material; g.map = tex.map; g.normalMap = tex.normalMap; g.roughnessMap = null; g.aoMap = null; g.color.set(0xb4b2ae); g.roughness = 0.92; g.needsUpdate = true; }
 }
 
 function clearRole(role) {
@@ -43,7 +43,7 @@ export async function applyPBR(st, onProgress = () => {}) {
     const role = roles[i], r = ROLES[role], name = st.pbrMats[role] || r.def, rr = r.half ? Math.max(256, res >> 1) : res, key = `${name}|${rr}|${r.weather ? wb : 0}|${role}`;
     let tex = cache.get(key);
     if (!tex) {
-      const m = await genMaps(name, { res: rr, tile: r.tile, seed: 11 + i * 7, metal: r.metal || 0, over: weatherOver(wb, r.weather), onProgress: (p) => onProgress((i + p) / roles.length, r.label) });
+      const m = await genMaps(name, { res: rr, tile: r.tile, seed: 11 + i * 7, metal: r.metal || 0, contrast: r.contrast == null ? 1 : Math.min(1, r.contrast + wb * 0.4), target: r.target, over: { ...weatherOver(wb, r.weather), ...(r.nStr ? { nStr: r.nStr } : {}) }, onProgress: (p) => onProgress((i + p) / roles.length, r.label) });
       if (my !== token) return false;
       tex = toTextures(m); tex.raw = m; cache.set(key, tex);
     }
@@ -51,7 +51,7 @@ export async function applyPBR(st, onProgress = () => {}) {
     onProgress((i + 1) / roles.length, r.label);
     await new Promise((r) => setTimeout(r, 0)); if (my !== token) return false;
   }
-  for (const [k, t] of cache) { const role = k.split('|')[3], rr = ROLES[role].half ? Math.max(256, res >> 1) : res; if (!k.includes(`|${rr}|`)) { for (const x of [t.map, t.normalMap, t.orm]) x.dispose(); cache.delete(k); } }
+  for (const [k, t] of cache) { const role = k.split('|')[3], rr = ROLES[role].half ? Math.max(256, res >> 1) : res; if (!k.includes(`|${rr}|`)) { for (const x of [t.map, t.normalMap]) x.dispose(); cache.delete(k); } }
   return true;
 }
 
@@ -62,4 +62,4 @@ export function rescalePBR(st) {
 }
 
 export const roleMaps = (role) => maps[role];
-export function clearCache() { for (const t of cache.values()) for (const x of [t.map, t.normalMap, t.orm]) x.dispose(); cache.clear(); }
+export function clearCache() { for (const t of cache.values()) for (const x of [t.map, t.normalMap]) x.dispose(); cache.clear(); }

@@ -28,7 +28,7 @@ export function roof(ctx) {
   if (st.cornice === 'dentil') for (const f of mainS) for (let s = f.s0 + 0.12; s < f.s1 - 0.06; s += 0.2) ctx.bbox('a_trim', ctx.frame(s, 0, f), -0.045, H + 0.14, 0.06, 0.045, H + 0.26, 0.15);
   if (st.cornice === 'modillion') for (const f of mainS) for (let s = f.s0 + 0.3; s < f.s1 - 0.15; s += 0.62) { const g = consoleGeo('scroll', 0.5, 0.28, 0.13); g.translate(0, H + 0.46, 0); ctx.add(g, 'a_trim', ctx.frame(s, 0, f)); }
   const top = H + ch;
-  deck(ctx, footprint(st.W, st.D, st.corner, st.cornerSize, 0.15), top - 0.03, 'a_ceil');
+  deck(ctx, footprint(st.W, st.D, st.corner, st.cornerSize, 0.15), top - 0.03, 'a_terr');
   let peak = top + 1;
   if (st.roof === 'mansard') peak = mansard(ctx, top);
   else if (st.roof === 'attic') { parapet(ctx, all, top, st.parapet === 'none' ? 'iron' : st.parapet); peak = attic(ctx, top); }
@@ -92,7 +92,7 @@ function attic(ctx, top) {
   }
   const S = samples(inner, 0, inner.L, true);
   ctx.add(sweep(S, CORNICE.simple, { y: top + h, closed: true }), 'a_trim');
-  deck(ctx, inner, top + h + 0.3, 'a_ceil');
+  deck(ctx, inner, top + h + 0.3, 'a_terr');
   parapet(ctx, S, top + h + 0.34, 'solid');
   return top + h + 1.4;
 }
