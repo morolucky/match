@@ -42,7 +42,13 @@ export async function genMaps(name, o = {}) {
   const S = Object.assign({}, DEFAULTS, { mat: name, rows: base.rows, cols: base.cols, mortar: base.mortar, bevel: base.bevel, relief: base.relief, rough: base.rough }, { tile: o.tile || 1.6, seed: o.seed || 7, gravity: 0, edgeWear: 0.3, aoStr: 0.6, nStr: 1.1, nSmooth: 1, sunOn: false, topType: 0 }, o.over || {});
   const K = flatTile(R, S.tile), sh = makeShader(K, S), N = R * R, step = 6000;
   for (let a = 0; a < N; a += step) { sh.range(a, Math.min(N, a + step)); if ((a / step) % 12 === 0) { o.onProgress && o.onProgress(a / N); await tick(); } }
-  const out = sh.out, nrm = wrapNormals(out.hgt, R, K.dens, S.nStr, S.nSmooth | 0);
+  const out = sh.out;
+  if (o.contrast != null && o.contrast < 1) { // pull albedo toward its mean: clean painted plaster instead of mottled stone
+    const m = [0, 0, 0]; for (let i = 0; i < N; i++) for (let c = 0; c < 3; c++) m[c] += out.alb[i * 3 + c];
+    for (let c = 0; c < 3; c++) m[c] /= N;
+    for (let i = 0; i < N * 3; i++) out.alb[i] = m[i % 3] + (out.alb[i] - m[i % 3]) * o.contrast;
+  }
+  const nrm = wrapNormals(out.hgt, R, K.dens, S.nStr, S.nSmooth | 0);
   const mk = () => { const c = document.createElement('canvas'); c.width = c.height = R; return c; };
   const ca = mk(), cn = mk(), co = mk(), ia = new ImageData(R, R), inn = new ImageData(R, R), io = new ImageData(R, R);
   const metal = o.metal || 0, aoK = o.aoStrength == null ? 1 : o.aoStrength;
@@ -52,15 +58,23 @@ export async function genMaps(name, o = {}) {
     inn.data[j] = (nrm[i * 3] * 0.5 + 0.5) * 255; inn.data[j + 1] = (nrm[i * 3 + 1] * 0.5 + 0.5) * 255; inn.data[j + 2] = (nrm[i * 3 + 2] * 0.5 + 0.5) * 255; inn.data[j + 3] = 255;
     io.data[j] = (1 - (1 - out.ao[i]) * aoK) * 255; io.data[j + 1] = out.rgh[i] * 255; io.data[j + 2] = metal * 255; io.data[j + 3] = 255;
   }
+  // render textures: 2 samplers only (lighting already uses ~11 of the usual 16 units):
+  // RGB = albedo × AO, A = roughness (read by the shader patch in algiers/materials.js)
+  const pk = new Uint8Array(N * 4), pn = new Uint8Array(N * 4);
+  for (let i = 0; i < N; i++) {
+    const j = i * 4, ao = 1 - (1 - out.ao[i]) * aoK;
+    pk[j] = Math.min(255, out.alb[i * 3] * ao * 255); pk[j + 1] = Math.min(255, out.alb[i * 3 + 1] * ao * 255); pk[j + 2] = Math.min(255, out.alb[i * 3 + 2] * ao * 255); pk[j + 3] = Math.min(255, out.rgh[i] * 255);
+    pn[j] = inn.data[j]; pn[j + 1] = inn.data[j + 1]; pn[j + 2] = inn.data[j + 2]; pn[j + 3] = 255;
+  }
   ca.getContext('2d').putImageData(ia, 0, 0); cn.getContext('2d').putImageData(inn, 0, 0); co.getContext('2d').putImageData(io, 0, 0);
   o.onProgress && o.onProgress(1);
-  return { albedo: ca, normal: cn, orm: co, tile: S.tile };
+  return { albedo: ca, normal: cn, orm: co, packed: pk, packedN: pn, res: R, tile: S.tile };
 }
 
-/** canvases → THREE textures (tiling) */
+/** packed data → THREE textures (DataTexture: no canvas premultiplication of the alpha channel) */
 export function toTextures(m, aniso = 8) {
-  const t = (c, srgb) => { const x = new THREE.CanvasTexture(c); x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = aniso; if (srgb) x.colorSpace = THREE.SRGBColorSpace; return x; };
-  return { map: t(m.albedo, true), normalMap: t(m.normal, false), orm: t(m.orm, false) };
+  const t = (data, srgb) => { const x = new THREE.DataTexture(data, m.res, m.res, THREE.RGBAFormat); x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = aniso; x.magFilter = THREE.LinearFilter; x.minFilter = THREE.LinearMipmapLinearFilter; x.generateMipmaps = true; if (srgb) x.colorSpace = THREE.SRGBColorSpace; x.needsUpdate = true; return x; };
+  return { map: t(m.packed, true), normalMap: t(m.packedN, false) };
 }
 
 export const MATERIAL_LIST = Object.entries(MATS).map(([k, m]) => ({ key: k, group: m.group, label: m.label }));
