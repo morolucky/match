@@ -5,7 +5,7 @@ import { AVG, L } from '../lighting/layers.js';
 import { $, err } from '../core/dom.js';
 import { D, PAL } from '../studio/params.js';
 import { OPN, dens, makeGeo, nIsl } from '../studio/generator.js';
-import { cam, ll, mat, oc, renderer } from '../scene/scene.js';
+import { cam, ground, ll, mat, oc, renderer } from '../scene/scene.js';
 import { matC, matG, matR } from '../scene/shaders.js';
 import { MT } from '../studio/materials.js';
 import { bake } from '../studio/kit.js';
