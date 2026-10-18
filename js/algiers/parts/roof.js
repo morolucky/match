@@ -131,7 +131,7 @@ function rooftop(ctx, y) {
   if (st.chimneys) for (let i = 0; i < 2 + Math.floor(p.hw / 6); i++) {
     const [x, z] = spot(), M = new THREE.Matrix4().makeTranslation(x, 0, z), w = 0.6 + R() * 0.8;
     ctx.bbox('a_wall', M, -w / 2, y, -0.3, w / 2, y + 1.3, 0.3); ctx.bbox('a_trim', M, -w / 2 - 0.08, y + 1.3, -0.38, w / 2 + 0.08, y + 1.42, 0.38);
-    for (let k = 0; k < Math.max(1, Math.round(w / 0.35)); k++) { const c = new THREE.CylinderGeometry(0.07, 0.09, 0.35, 8); c.translate(-w / 2 + 0.18 + k * 0.32, y + 1.6, 0); ctx.add(c, 'pot', M); }
+    for (let k = 0; k < Math.max(1, Math.round(w / 0.35)); k++) { const c = new THREE.CylinderGeometry(0.07, 0.09, 0.35, 8); c.translate(-w / 2 + 0.18 + k * 0.32, y + 1.6, 0); ctx.add(c, 'p_pot', M); }
   }
   if (L.tanks && st.roof !== 'mansard') for (let i = 0; i < 2 + Math.floor(R() * 4); i++) {
     const [x, z] = spot(), t = new THREE.LatheGeometry(LATHE.tank, 14); if (R() < 0.5) { t.rotateZ(Math.PI / 2); t.translate(-0.55, 0.6, 0); } t.translate(x, y + 0.05, z); ctx.add(t, R() < 0.6 ? 'a_ac' : 'a_metal');

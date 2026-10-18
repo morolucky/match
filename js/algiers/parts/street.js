@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { samples } from '../geom/path.js';
+import { samples, at } from '../geom/path.js';
 import { sweep, strip } from '../geom/sweep.js';
 import { LATHE } from '../geom/shapes.js';
 import { dishAt } from './roof.js';
@@ -7,22 +7,34 @@ import { dishAt } from './roof.js';
 // Street: sidewalk with curb, road with lane dashes, Algiers candelabra lamps, pedestrian
 // barriers; façade life: A/C units and satellite dishes.
 
-const SW = 3.6;
+export const SW = 3.6;
+
+/** straight run-out of `E` metres past either end of the street faces so the road does not stop at the corner */
+function runout(path, face, atStart, E) {
+  const p = at(path, atStart ? face.s0 : face.s1, face), sg = atStart ? -1 : 1, q = (d) => ({ s: 0, x: p.x + p.tx * d, z: p.z + p.tz * d, mx: p.nx, mz: p.nz, nx: p.nx, nz: p.nz });
+  return atStart ? [q(sg * E), q(0)] : [q(0), q(sg * E)];
+}
 
 export function street(ctx) {
   const st = ctx.st, path = ctx.path, L = st.life;
-  const mainF = path.faces.filter((f) => f.main), closed = st.sides === 'all';
-  const a = Math.min(...mainF.map((f) => f.s0)), b = Math.max(...mainF.map((f) => f.s1));
-  const S = samples(path, a, b, closed);
-  if (L.street) {
-    ctx.add(sweep(S, [[0, 0], [SW - 0.25, 0], [SW - 0.25, 0.15], [0, 0.15]], { closed, caps: !closed }), 'a_pave');
-    ctx.add(sweep(S, [[SW - 0.25, 0], [SW, 0], [SW, 0.16], [SW - 0.25, 0.16]], { closed, caps: !closed }), 'a_curb');
-    ctx.add(strip(S, SW, SW + 9, 0.012), 'a_asph');
-    for (const f of mainF) if (f.kind === 'line') for (let s = f.s0 + 1; s < f.s1 - 1; s += 3.2) ctx.bbox('a_mark', ctx.frame(s, 0, f), -0.75, 0.014, SW + 4.45, 0.75, 0.02, SW + 4.57);
+  // the street wraps every face that borders a road: front, corner and side (all faces for "all")
+  const closed = st.sides === 'all', sf = path.faces.filter((f) => closed || ['front', 'corner', 'side'].includes(f.name));
+  const a = Math.min(...sf.map((f) => f.s0)), b = Math.max(...sf.map((f) => f.s1)), E = 10;
+  const S = samples(path, a, b, closed), first = sf[0], last = sf[sf.length - 1];
+  const parts = closed ? [S] : [runout(path, first, true, E), S, runout(path, last, false, E)];
+  if (L.street) for (const P of parts) {
+    ctx.add(sweep(P, [[0, 0], [SW - 0.25, 0], [SW - 0.25, 0.15], [0, 0.15]], { caps: !closed }), 'a_pave');
+    ctx.add(sweep(P, [[SW - 0.25, 0], [SW, 0], [SW, 0.16], [SW - 0.25, 0.16]], { caps: !closed }), 'a_curb');
+    ctx.add(strip(P, SW, SW + 9, 0.012), 'a_asph');
+  }
+  if (L.street) { // lane dashes follow the curve (frames are tangent to the path, so arcs work too)
+    for (let s = a + 1; s < b - 0.8; s += 3.2) ctx.bbox('a_mark', ctx.frame(s, 0, null), -0.75, 0.014, SW + 4.45, 0.75, 0.02, SW + 4.57);
+    for (const [f, d] of [[first, -1], [last, 1]]) { const p = at(path, d < 0 ? f.s0 : f.s1, f); for (let k = 1; k * 3.2 < E; k++) { const M = new THREE.Matrix4().makeBasis(new THREE.Vector3(p.tx, 0, p.tz), new THREE.Vector3(0, 1, 0), new THREE.Vector3(p.nx, 0, p.nz)).setPosition(p.x + p.tx * d * k * 3.2, 0, p.z + p.tz * d * k * 3.2); ctx.bbox('a_mark', M, -0.75, 0.014, SW + 4.45, 0.75, 0.02, SW + 4.57); } }
   }
   const len = b - a;
   if (L.lamps) { const n = Math.max(1, Math.round(len / 15)); for (let i = 0; i < n; i++) lamp(ctx, ctx.frame(a + (i + 0.5) * len / n, SW - 0.55, null)); }
-  if (L.barriers) for (const f of mainF) if (f.kind === 'line') for (let s = f.s0 + 0.8; s < f.s1 - 1.5; s += 1.4) barrier(ctx, ctx.frame(s, SW - 0.4, f));
+  if (L.barriers) for (const f of sf) if (f.kind === 'line') for (let s = f.s0 + 0.8; s < f.s1 - 1.5; s += 1.4) barrier(ctx, ctx.frame(s, SW - 0.4, f));
+  return { a, b, closed, sf, SW };
 }
 
 /** cast-iron candelabra with five lanterns (Bd Che Guevara / Rue Larbi Ben M'hidi type) */

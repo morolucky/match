@@ -36,7 +36,7 @@ function balconyLife(ctx, S, y, d) {
   const L = ctx.st.life, len = S[S.length - 1].s - S[0].s;
   if (L.plants) for (let s = S[0].s + 0.4; s < S[S.length - 1].s - 0.3; s += 0.9 + ctx.rng() * 2.5) {
     if (ctx.rng() > 0.45) continue;
-    const M = ctx.frame(s, 0, null), pot = new THREE.LatheGeometry(LATHE.pot, 8); pot.translate(0, y + 0.04, d - 0.3); ctx.add(pot, 'pot', M);
+    const M = ctx.frame(s, 0, null), pot = new THREE.LatheGeometry(LATHE.pot, 8); pot.translate(0, y + 0.04, d - 0.3); ctx.add(pot, 'p_pot', M);
     const b = new THREE.IcosahedronGeometry(0.22 + ctx.rng() * 0.12, 0); b.scale(1, 1.3, 1); b.translate(0, y + 0.5, d - 0.3); ctx.add(b, 'a_plant', M);
   }
   if (L.laundry && len > 1.5 && ctx.rng() < 0.18) {
