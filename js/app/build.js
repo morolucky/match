@@ -5,7 +5,7 @@ import { AVG, L } from '../lighting/layers.js';
 import { $, err } from '../core/dom.js';
 import { D, PAL } from '../studio/params.js';
 import { OPN, dens, makeGeo, nIsl } from '../studio/generator.js';
-import { cam, ll, mat, oc, renderer } from '../scene/scene.js';
+import { cam, ground, ll, mat, oc, renderer } from '../scene/scene.js';
 import { matC, matG, matR } from '../scene/shaders.js';
 import { MT } from '../studio/materials.js';
 import { bake } from '../studio/kit.js';
@@ -19,6 +19,7 @@ import { rgb } from '../studio/params.js';
 import { buildAlgiers } from '../algiers/builder.js';
 import { design } from '../algiers/design.js';
 import { TYPES } from '../algiers/types.js';
+import { buildCityScene, clearCity } from '../city/mode.js';
 
 function buildModels() {
   if (S.MG) { ll.level.remove(S.MG); S.MG.children.forEach((o) => o.geometry.dispose()); S.MG = null; }
