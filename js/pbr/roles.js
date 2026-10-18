@@ -4,10 +4,11 @@
 // `metal` = metalness written to the ORM map, `tint` = keep the palette colour as albedo multiplier.
 
 export const ROLES = {
-  wall:   { label: 'الجدران (جص)',        mt: ['a_wall'],              def: 'stucco',     tile: 3,   weather: 1,   tint: true,  opts: ['stucco', 'plaster', 'concrete', 'whitebrick', 'sandstone'] },
+  wall:   { label: 'الجدران (جص)',        mt: ['a_wall'],              def: 'stucco',     tile: 3,   weather: 0.45, nStr: 0.45, contrast: 0.25, target: 0.86,   tint: true,  opts: ['stucco', 'plaster', 'concrete', 'whitebrick', 'sandstone'] },
   ground: { label: 'الطابق الأرضي (حجر)', mt: ['a_ground'],            def: 'ashlar',     tile: 2,   weather: 1,   tint: true,  opts: ['ashlar', 'limestone', 'rough', 'sandstone', 'granite'] },
-  trim:   { label: 'الزخارف والكورنيش',   mt: ['a_trim'],              def: 'limestone',  tile: 1.5, weather: 0.7, tint: true,  opts: ['limestone', 'ashlar', 'cornice', 'marble', 'sandstone'] },
-  zinc:   { label: 'سطح الزنك',           mt: ['a_zinc'],              def: 'galv',       tile: 1.5, weather: 0.4, tint: true,  metal: 0.5, opts: ['galv', 'rustmetal', 'slate', 'clayroof'] },
+  trim:   { label: 'الزخارف والكورنيش',   mt: ['a_trim'],              def: 'limestone',  tile: 1.5, weather: 0.4, nStr: 0.6, contrast: 0.45, target: 0.8, tint: true,  opts: ['limestone', 'ashlar', 'cornice', 'marble', 'sandstone'] },
+  terr:   { label: 'أرضية السطح (Terrasse)', mt: ['a_terr'], def: 'concrete', tile: 2.4, weather: 0.5, contrast: 0.6, target: 0.74, tint: true, opts: ['concrete', 'ceramic', 'terracotta', 'concrete', 'flagstone', 'marble'] },
+  zinc:   { label: 'زنك المانسارد',           mt: ['a_zinc'],              def: 'slate',      tile: 1.5, weather: 0.4, tint: true,  opts: ['slate', 'galv', 'rustmetal', 'clayroof'] },
   pave:   { label: 'الرصيف',              mt: ['a_pave'],              def: 'flagstone',  tile: 1.6, weather: 1,   tint: false, opts: ['flagstone', 'cobble', 'granite', 'concrete', 'ceramic'] },
   curb:   { label: 'الحافة (Curb)',       mt: ['a_curb'],              def: 'granite',    tile: 1.5, weather: 1,   tint: false, opts: ['granite', 'limestone', 'concrete'] },
   asph:   { label: 'الأسفلت',             mt: ['a_asph'],              def: 'asphalt',    tile: 3,   weather: 1,   tint: false, opts: ['asphalt', 'concrete', 'cobble'] },
