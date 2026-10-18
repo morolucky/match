@@ -30,7 +30,7 @@ $('e1').onclick = async () => studioOnly() && save('uv_layout.png', await png(dr
 $('e3').onclick = () => {
   if (S.mode === 'alg') { if (S.AG) save('alger_building.obj.txt', new Blob([new OBJExporter().parse(S.AG)], { type: 'text/plain' })); return; }
   let s = '# smart building\n', n = 1, f = ''; for (const q of Q) { q.p.forEach((p) => s += `v ${p[0].toFixed(4)} ${p[1].toFixed(4)} ${p[2].toFixed(4)}\n`); q.a.forEach((a) => s += `vt ${(a[0]/R).toFixed(5)} ${(1 - a[1]/R).toFixed(5)}\n`); f += `f ${n}/${n} ${n+1}/${n+1} ${n+2}/${n+2}\nf ${n}/${n} ${n+2}/${n+2} ${n+3}/${n+3}\n`; n += 4; } save('building.obj.txt', new Blob([s + f], { type: 'text/plain' })); };
-$('glb').onclick = () => { const root = S.mode === 'alg' ? S.AG : ll.level; if (!root) return; new GLTFExporter().parse(root, (b) => save('building.glb', new Blob([b], { type: 'model/gltf-binary' })), (e) => err(e.message || e), { binary: true }); };
+$('glb').onclick = () => { const root = S.mode === 'alg' ? S.AG : S.mode === 'city' ? S.CG : ll.level; if (!root) return; new GLTFExporter().parse(root, (b) => save(S.mode === 'city' ? 'algiers_city.glb' : 'building.glb', new Blob([b], { type: 'model/gltf-binary' })), (e) => err(e.message || e), { binary: true }); };
 $('shot').onclick = async () => { ll.render(0.016); save('building.png', await png(renderer.domElement)); };
 
 export { save, png };

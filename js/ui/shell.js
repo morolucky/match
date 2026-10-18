@@ -6,7 +6,7 @@ export function initShell() {
   const tabs = [...document.querySelectorAll('.tabs button')], secs = [...document.querySelectorAll('section.tab')];
   const show = (id) => {
     tabs.forEach((b) => b.classList.toggle('on', b.dataset.tab === id)); secs.forEach((s) => s.classList.toggle('on', s.dataset.tab === id));
-    const mode = id === 'alg' ? 'alg' : id === 'studio' ? 'studio' : S.mode;
+    const mode = id === 'alg' ? 'alg' : id === 'city' ? 'city' : id === 'studio' ? 'studio' : S.mode;
     if (mode !== S.mode) { S.mode = mode; later(); }
     document.body.dataset.mode = S.mode;
   };
