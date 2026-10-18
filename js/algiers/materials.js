@@ -12,7 +12,10 @@ let made = false, lastWeather = -1;
 const ironTex = {};
 
 /** materials whose UVs are re-projected from world position (metres / scale) */
-export const WORLD_UV = { a_wall: 1 / 3, a_ground: 1 / 2, a_trim: 1 / 1.5, a_pave: 1 / 1.2, a_asph: 1 / 4, a_zinc: 1 / 1.5, a_zel: 1 / 0.5, a_curb: 1 / 1.5 };
+export const WORLD_UV = Object.fromEntries(['a_wall', 'a_ground', 'a_trim', 'a_pave', 'a_asph', 'a_zinc', 'a_zel', 'a_curb', 'a_metal', 'a_dome', 'a_wood', 'p_wood', 'p_conc', 'p_metal', 'p_bark', 'p_pot', 'p_paint'].map((k) => [k, 1]));
+/** metres covered by one texture tile for the procedural fallbacks (PBR roles set their own scale) */
+const LEGACY_TILE = { a_wall: 3, a_ground: 2, a_trim: 1.5, a_pave: 1.2, a_asph: 4, a_zel: 0.5, a_curb: 1.5 };
+export function setRepeat(m, tile) { for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap, m.aoMap]) if (t) t.repeat.set(1 / tile, 1 / tile); }
 
 export function ensureMaterials() {
   if (made) return; made = true;
@@ -43,11 +46,18 @@ export function ensureMaterials() {
   MT.a_metal = std({ color: 0x8b9196, roughness: 0.4, metalness: 0.6 });
   MT.a_plant = std({ color: 0x3f7a35, roughness: 0.85 });
   MT.a_ceil = std({ color: 0xd8d2c6, roughness: 1 });
+  MT.p_wood = std({ color: 0xb08f6c, roughness: 0.6, side: DB }); MT.p_conc = std({ color: 0xbdb8ae, roughness: 0.9 });
+  MT.p_metal = std({ color: 0x23272b, roughness: 0.45, metalness: 0.7 }); MT.p_bark = std({ color: 0x5a4636, roughness: 1 });
+  MT.p_pot = std({ color: 0xb4623c, roughness: 0.8 }); MT.p_paint = std({ color: 0xffffff, roughness: 0.28, metalness: 0.55 });
+  MT.p_tire = std({ color: 0x111213, roughness: 0.9 }); MT.p_leaf = std({ color: 0x5c9c44, roughness: 0.75, side: DB });
+  for (const k in LEGACY_TILE) setRepeat(MT[k], LEGACY_TILE[k]);
   for (let i = 0; i < TX.SIGN_N; i++) MT['a_sign' + i] = std({ map: TX.tex(TX.sign(i)), roughness: 0.6, emissive: 0x111111 });
   ['#f4f1ea', '#2e6fb5', '#c63b3b', '#f0c63a', '#5b8f4e', '#e88fb1'].forEach((c, i) => { MT['a_cloth' + i] = std({ color: c, roughness: 0.95, side: DB }); });
 }
 
 /** palette + weathering (cheap: recolours / regenerates two textures) */
+/** forget legacy-weather cache so switching PBR off rebuilds the canvas textures */
+export function resetLegacy() { lastWeather = -1; }
 export function applyLook(st) {
   ensureMaterials();
   MT.a_wall.color.set(st.wallColor); MT.a_trim.color.set(st.trimColor); MT.a_ground.color.set(st.groundColor);
@@ -56,11 +66,11 @@ export function applyLook(st) {
   MT.a_zinc.color.set(st.roofColor); MT.a_dome.color.set(st.domeColor); MT.a_awn.color.set(st.awningColor);
   MT.a_frame.color.set(st.frameColor);
   if (MT.a_rail.map !== ironTex[st.iron]) { MT.a_rail.map = ironTex[st.iron] || ironTex.classic; MT.a_rail.needsUpdate = true; }
-  if (Math.abs(lastWeather - st.weather) > 1e-3) {
+  if (!st.pbrOn && Math.abs(lastWeather - st.weather) > 1e-3) {
     lastWeather = st.weather;
     for (const [k, f] of [['a_wall', TX.plaster], ['a_ground', TX.ashlar]]) {
       const m = MT[k]; m.map && m.map.dispose(); m.normalMap && m.normalMap.dispose();
-      const t = TX.tex(f(st.weather)); m.map = t; m.normalMap = nrm(t, k === 'a_wall' ? 0.8 : 1.5); m.normalScale = new THREE.Vector2(0.4, 0.4); m.needsUpdate = true;
+      const t = TX.tex(f(st.weather)); m.map = t; m.normalMap = nrm(t, k === 'a_wall' ? 0.8 : 1.5); m.normalScale = new THREE.Vector2(0.4, 0.4); setRepeat(m, LEGACY_TILE[k]); m.needsUpdate = true;
     }
   }
 }

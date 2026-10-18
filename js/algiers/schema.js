@@ -3,6 +3,8 @@
 // add it to DEFAULTS and to a group below, then read it in the builder.
 // `look: true` marks parameters that only recolour materials (no geometry rebuild).
 
+import { DEFAULT_MATS } from '../pbr/roles.js';
+
 export const DEFAULTS = {
   type: 'haussmann', seed: 7,
   W: 26, D: 18, floors: 6, gh: 4.8, fh: 3.3, bay: 3.3,
@@ -13,6 +15,8 @@ export const DEFAULTS = {
   ornament: 0.6, strings: true, pilasters: false, quoins: false, cornice: 'modillion', zellige: false,
   roof: 'terrace', parapet: 'balustrade', mh: 3.2, dormers: true, dome: 'none', chimneys: true,
   wallColor: '#f4f1ea', trimColor: '#efe8db', groundColor: '#e7dfcf', shutterColor: '#2f6aa8', ironColor: '#1c1e21', frameColor: '#f3f1ea', roofColor: '#8e979c', domeColor: '#8e979c', awningColor: '#2e6fb5', weather: 0.35,
+  pbrOn: true, pbrRes: 1024, pbrScale: 1, pbrMats: DEFAULT_MATS,
+  props: { bench: true, bin: true, bollard: true, tree: true, planter: false, kiosk: false, car: true }, propDensity: 1,
   life: { street: true, lamps: true, ac: true, dishes: true, laundry: true, plants: true, tanks: true, barriers: false },
 };
 
@@ -96,9 +100,20 @@ export const GROUPS = [
     { k: 'awningColor', t: 'color', label: 'الستائر القماشية', sw: PALETTE.awning, look: true },
     { k: 'weather', t: 'range', label: 'القِدم والاتساخ', min: 0, max: 1, step: 0.05, fmt: 'pct', look: true },
   ] },
+  { id: 'props', icon: '🪑', title: 'عناصر الشارع (Props PBR)', controls: [
+    { k: 'props', t: 'chips', opts: [['bench', '🪑 مقاعد'], ['bin', '🗑 حاويات'], ['bollard', '⛔ أعمدة حماية'], ['tree', '🌳 أشجار'], ['planter', '🌿 أحواض'], ['kiosk', '📰 كشك'], ['car', '🚗 سيارات']] },
+    { k: 'propDensity', t: 'range', label: 'الكثافة', min: 0.4, max: 2.5, step: 0.1 },
+  ] },
+  { id: 'pbr', icon: '🧪', title: 'مولّد خامات PBR (Bake Lab HD)', controls: [
+    { k: 'pbrOn', t: 'toggle', label: 'تفعيل خامات PBR' },
+    { k: 'pbrRes', t: 'seg', label: 'الدقة', opts: [[512, '512'], [1024, 'HD 1K'], [2048, 'UHD 2K']], when: (s) => s.pbrOn },
+    { k: 'pbrScale', t: 'range', label: 'مقياس الخامة', min: 0.5, max: 2, step: 0.05, when: (s) => s.pbrOn },
+    { k: 'pbrMats', t: 'pbrRoles', when: (s) => s.pbrOn },
+  ] },
   { id: 'life', icon: '🌆', title: 'حياة الشارع', controls: [
     { k: 'life', t: 'chips', opts: [['street', '🛣 رصيف وطريق'], ['lamps', '🏮 أعمدة إنارة'], ['barriers', '🚧 حواجز'], ['ac', '❄️ مكيفات'], ['dishes', '📡 صحون'], ['laundry', '👕 غسيل'], ['plants', '🪴 نباتات'], ['tanks', '🛢 خزانات']] },
   ] },
 ];
 
+export const PBR_KEYS = new Set(['pbrOn', 'pbrRes', 'pbrScale', 'pbrMats']);
 export const LOOK_KEYS = new Set(GROUPS.flatMap((g) => g.controls.filter((c) => c.look).map((c) => c.k)));
