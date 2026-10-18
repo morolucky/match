@@ -23,7 +23,7 @@ import { upperOpenings } from '../algiers/layout.js';
 export function addCityBuilding(ctx, poly, floors, seed, baseSt) {
   const path = footprintFromPolygon(poly);
   if (path.faces.length < 3 || path.L < 3) return;
-  floors = Math.max(1, Math.min(9, floors | 0));
+  floors = Math.max(1, Math.min(7, floors | 0));
   const nUp = Math.max(0, floors - 1), levels = [0];
   for (let i = 0; i < nUp; i++) levels.push(baseSt.gh + i * baseSt.fh);
   const H = baseSt.gh + nUp * baseSt.fh;
@@ -35,7 +35,7 @@ export function addCityBuilding(ctx, poly, floors, seed, baseSt) {
   }
   const allBays = path.faces.flatMap((f) => f.bays);
   const program = Array.from({ length: nUp }, (_, i) => baseSt.program[i] || baseSt.program[baseSt.program.length - 1] || { bal: 'single', crown: 'flat' });
-  const st = { ...baseSt, seed, floors, ground: 'shops' };
+  const st = { ...baseSt, seed, floors, ground: 'shops', bay: Math.max(baseSt.bay, 3.6) };
   const lay = { path, nUp, levels, H, bays: allBays, entrance: allBays[0] || null, program };
   ctx.st = st; ctx.lay = lay; ctx.path = path; ctx.rng = mulberry(seed * 9973 + 17);
 

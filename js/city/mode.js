@@ -38,13 +38,19 @@ function mats() {
 
 /** the Algiers Designer's current look, adapted for city-scale buildings: flat terrace roof
  *  (no mansard/dome, which assume a rectangular W×D footprint), no per-building fake street
- *  (OSM road geometry already covers that), and cheap roof trim — a balustrade places a lathed
- *  baluster every 0.27 m and a modillion cornice a console every 0.62 m along *every* main face;
- *  fine for one building, but summed over hundreds of long OSM perimeters it is the difference
- *  between a few thousand and several hundred thousand tiny geometries. */
+ *  (OSM road geometry already covers that), and cheap trim everywhere it scales with window/
+ *  perimeter count rather than once per building — a balustrade places a lathed baluster every
+ *  0.27 m and full window surrounds add moulding+console+keystone per opening; fine for one
+ *  building, but summed over hundreds of long OSM perimeters and thousands of windows it is the
+ *  difference between a few hundred thousand and tens of millions of triangles. */
 function cityStyle() {
   const st = design.state;
-  return { ...st, roof: 'terrace', dome: 'none', cornice: 'simple', parapet: 'iron', quoins: false, pilasters: false, zellige: false, life: { ...st.life, street: false, barriers: false } };
+  return {
+    ...st, roof: 'terrace', dome: 'none', cornice: 'simple', parapet: 'iron',
+    quoins: false, pilasters: false, zellige: false, strings: false,
+    shutter: 'roller', consoles: 'none', surround: 1, ornament: 0.15,
+    life: { ...st.life, street: false, barriers: false },
+  };
 }
 
 function mesh(pos, uv, material) {
