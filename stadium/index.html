@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AAA Stadium — Real-time 3D (three.js)</title>
+  <style>
+    :root { --bg: rgba(8, 18, 34, 0.78); --line: rgba(120, 170, 230, 0.25); --acc: #2f8cff; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #e6eefb; }
+    #app canvas { display: block; }
+    .panel { position: fixed; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(8px); padding: 12px 14px; }
+    #title { top: 14px; left: 14px; }
+    #title h1 { margin: 0; font-size: 18px; letter-spacing: 0.04em; }
+    #title p { margin: 2px 0 0; color: #9fb4d0; font-size: 12px; }
+    #ui { top: 14px; right: 14px; width: 248px; max-height: calc(100% - 28px); overflow: auto; }
+    #ui h3 { margin: 10px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #8fb3e6; }
+    #ui h3:first-child { margin-top: 0; }
+    .row { display: flex; flex-wrap: wrap; gap: 5px; }
+    button { flex: 1 1 auto; background: rgba(255,255,255,0.06); color: #e6eefb; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; cursor: pointer; font: inherit; }
+    button:hover { background: rgba(47,140,255,0.25); }
+    button.on { background: var(--acc); border-color: var(--acc); }
+    button.primary { background: #1b5fd1; width: 100%; margin-top: 4px; }
+    label { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+    input[type=range] { width: 100%; }
+    #stats { bottom: 14px; left: 14px; display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-variant-numeric: tabular-nums; }
+    #stats span:nth-child(odd) { color: #8fb3e6; }
+    #help { bottom: 14px; right: 14px; color: #9fb4d0; font-size: 12px; }
+    #walkhint { position: fixed; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #fff; display: none; }
+    #walkhint.show { display: block; }
+    #loader { position: fixed; inset: 0; display: grid; place-content: center; gap: 14px; background: #050b16; transition: opacity 0.6s; text-align: center; }
+    #loader.done { opacity: 0; pointer-events: none; }
+    #loader .track { width: 260px; height: 4px; background: #13233d; border-radius: 2px; overflow: hidden; }
+    #bar { height: 100%; width: 0; background: var(--acc); transition: width 0.2s; }
+    @media (max-width: 700px) { #help, #title p { display: none; } #ui { width: 200px; } }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="title" class="panel">
+    <h1>AAA STADIUM</h1>
+    <p>Structure → Array system → Full build · real-time PBR</p>
+  </div>
+
+  <div id="ui" class="panel">
+    <h3>Time of day</h3>
+    <div class="row">
+      <button data-time="day">Day</button>
+      <button data-time="sunset">Sunset</button>
+      <button data-time="night">Night</button>
+    </div>
+    <h3>Camera</h3>
+    <div class="row">
+      <button data-cam="broadcast">Broadcast</button>
+      <button data-cam="corner">Corner</button>
+      <button data-cam="goal">Goal</button>
+      <button data-cam="upper">Upper tier</button>
+      <button data-cam="aerial">Aerial</button>
+      <button data-cam="exterior">Exterior</button>
+    </div>
+    <button id="walk" class="primary">Walk mode (WASD)</button>
+    <h3>Build layers</h3>
+    <label><input type="checkbox" id="roof" checked /> Roof panels</label>
+    <label><input type="checkbox" id="seats" checked /> Seat arrays</label>
+    <label>Exploded view</label>
+    <input type="range" id="explode" min="0" max="1" step="0.01" value="0" />
+    <h3>Quality</h3>
+    <div class="row">
+      <button data-quality="low">Low</button>
+      <button data-quality="medium">Medium</button>
+      <button data-quality="high">High</button>
+    </div>
+    <h3>Engine export</h3>
+    <button id="export" class="primary">Export GLB</button>
+  </div>
+
+  <div id="stats" class="panel">
+    <span>FPS</span><span id="fps">–</span>
+    <span>Triangles</span><span id="tris">–</span>
+    <span>Draw calls</span><span id="calls">–</span>
+    <span>Seats</span><span id="seatcount">–</span>
+  </div>
+
+  <div id="help" class="panel">Drag: orbit · Right-drag: pan · Wheel: zoom<br />Walk: WASD · Shift run · Space/C up/down · Esc exit</div>
+  <div id="walkhint"></div>
+
+  <div id="loader">
+    <div style="font-size:20px;letter-spacing:.1em">AAA STADIUM</div>
+    <div class="track"><div id="bar"></div></div>
+    <div style="color:#7f95b5">Loading PBR textures…</div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
