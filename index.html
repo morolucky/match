@@ -761,12 +761,12 @@ function rtFull(rt,mode){const N=rt.width,b=new Uint8Array(N*N*4);R.readRenderTa
 const SPECIES=[
  {n:'فيكس مقصوص',w:3,p:{shape:'cushion',cw:3.8,cd:3.5,ch:1.8,round:3,trunkH:2,leafSize:.15,leaves:15000,attractors:1200},tint:{c:[.14,.33,.08],a:.55,j:.05},bark:[.95,.9,.85],paint:.6},
  {n:'كرة مشذّبة',w:2,p:{shape:'sphere',cw:2.8,cd:2.8,ch:2.5,trunkH:1.9,leaves:12000,attractors:900,lean:.25},tint:{c:[.3,.52,.12],a:.6,j:.06},paint:.5},
- {n:'زيتون',w:2,p:{shape:'natural',cw:3.3,cd:3.1,ch:2.8,trunkH:1.5,trunkR:.17,lean:.9,wobble:.8,attractors:800,influence:1.05,kill:.24,tropism:.2,leaves:10000,leafSize:.11,sizeVar:.2,fold:.3},tint:{c:[.44,.5,.38],a:.85,j:.04},bark:[.82,.82,.8],paint:.2},
+ {n:'زيتون',w:2,p:{shape:'natural',cw:3.3,cd:3.1,ch:2.8,trunkH:1.5,trunkR:.17,lean:.9,wobble:.8,attractors:800,influence:1.05,kill:.24,tropism:.2,leaves:17000,leafSize:.13,sizeVar:.2,fold:.3},tint:{c:[.4,.48,.33],a:.85,j:.05},bark:[.82,.82,.8],paint:.2},
  {n:'بوانسيانا حمراء',w:1.5,p:{shape:'umbrella',cw:4.8,cd:4.6,ch:1.5,trunkH:2.3,lean:.4,leaves:13000,leafSize:.13},tint:{c:[.22,.42,.1],a:.6,j:.05,alt:[.95,.2,.05],af:.42,aa:1},paint:.1},
  {n:'جاكرندا بنفسجية',w:1.5,p:{shape:'natural',cw:3.8,cd:3.6,ch:2.9,trunkH:2.2,trunkR:.14,lean:.6,attractors:900,influence:1,kill:.22,leaves:11000,leafSize:.13},tint:{c:[.3,.45,.15],a:.5,j:.05,alt:[.56,.42,.88],af:.55,aa:1},paint:.1},
  {n:'كاسيا صفراء',w:1.2,p:{shape:'sphere',cw:3.2,cd:3.1,ch:2.8,trunkH:2,leaves:11000},tint:{c:[.25,.45,.1],a:.5,j:.05,alt:[1,.8,.08],af:.45,aa:1},paint:.2},
  {n:'خريفية',w:1.2,p:{shape:'natural',cw:3.4,cd:3.2,ch:3.1,trunkH:2.1,trunkR:.15,attractors:850,influence:1.05,leaves:10000,leafSize:.17},tint:{c:[.88,.48,.08],a:.9,j:.12,alt:[.78,.14,.04],af:.3,aa:.95},bark:[.8,.75,.72],paint:0,fallen:2.5},
- {n:'أرجوانية (برقوق)',w:1,p:{shape:'sphere',cw:3,cd:2.9,ch:2.6,trunkH:1.9,leaves:11000,leafSize:.14},tint:{c:[.38,.1,.14],a:.9,j:.08},bark:[.75,.7,.7],paint:.3},
+ {n:'أرجوانية (برقوق)',w:1,p:{shape:'sphere',cw:3,cd:2.9,ch:2.6,trunkH:1.9,leaves:11000,leafSize:.14},tint:{c:[.46,.14,.2],a:.9,j:.08},bark:[.75,.7,.7],paint:.3},
  {n:'شتلة حديثة',w:1,p:{shape:'sphere',cw:1.6,cd:1.6,ch:1.6,trunkH:1.7,trunkR:.07,attractors:500,step:.08,influence:.6,kill:.15,leaves:4500,leafSize:.14},tint:{c:[.38,.6,.14],a:.6,j:.06},stakes:1,paint:0,fallen:.3}];
 const ROWMIX={mixed:[0,1,2,3,4,5,6,7,8],green:[0,1,2,8],flowering:[3,4,5,0],autumn:[6,6,7,2,0],clipped:[0,0,1]};
 let PITS=[];
