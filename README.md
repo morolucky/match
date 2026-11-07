@@ -13,5 +13,15 @@
 - أربعة مستويات جودة (`?quality=low|medium|high|ultra`)، وأربعة أوضاع إضاءة، وستة قوالب، وبذرة قابلة للتكرار.
 - تصدير **GLB** (الأوراق بوضع ألفا MASK)، ولقطة PNG، ونسخ ولصق الإعدادات بصيغة JSON.
 
+## نظام الطريق والرصيف (خامات 4K)
+- **خبز خامات PBR على الـGPU** بدقة 1K/2K/4K (`?tex=4096`)، ولكل خامة Albedo · Normal · Roughness · Metallic · AO · Height. الخامات قابلة للتبليط بلا حواف، والرسم يتم على مربعات 1024² حتى لا يتجاوز مهلة الـGPU.
+  - أسفلت بطبقتين من الحصى، ورابط بيتوميني يتغير لونه مع عمر الأسفلت، وتآكل.
+  - بلاط رصيف بأربعة أنماط: Herringbone، ورابط جاري، وبلاطات 50 سم، ونسيج سلة. حوافه مشطوفة ومكسّرة، وفواصله رملية فيها طحالب، وألوانه أربعة.
+  - حجر حافة من غرانيت أو خرسانة، وغطاء صرف من حديد زهر.
+- **Parallax Occlusion Mapping** على الطريق والرصيف، وتنويع ماكرو بالإحداثيات العالمية يكسر التكرار: مسارات العجلات، وبقع زيت، وخطوط قار، ورقع إصلاح، وعلكة على الرصيف.
+- **البلل والبرك**: تعتيم المسام، وانخفاض الخشونة، وبرك مسطّحة عاكسة في المناطق المنخفضة.
+- **الهندسة**: طريق بانحدار عرضي 2% وأخاديد عجلات، ومزاريب خرسانية، وحجر حافة بمقطع مستدير وفواصل 6مم. عند ممر المشاة منحدر منخفض للرصيف وبلاط إرشادي بنتوءات حقيقية. خطوط مسارات (متقطع/متصل/مزدوج أصفر) بطلاء متآكل يتبع حصى الأسفلت، وممر حمار وحشي، وخطوط توقف، وغطاء صرف، وبالوعات، وجدار حد.
+- عارض الخرائط يتيح تنزيل كل خريطة PNG بدقتها الكاملة (حتى 4096²).
+
 ## English
-Single-file procedural street-tree generator. Features: a full procedural PBR leaf map set with a viewer, space-colonization branching, wind/SSS/lime-paint shader injection, GTAO + bloom, quality tiers, and GLB export.
+Single-file procedural street-tree generator. Includes a sidewalk/road system with GPU-baked tileable PBR textures up to 4K (asphalt, pavers, granite, concrete, manhole), POM, wetness and puddles, curb ramps, tactile paving and lane markings. Other features: a full procedural PBR leaf map set with a viewer, space-colonization branching, wind/SSS/lime-paint shader injection, GTAO + bloom, quality tiers, and GLB export.

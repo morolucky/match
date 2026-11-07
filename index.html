@@ -36,7 +36,7 @@ summary{cursor:pointer;font-weight:600;margin-bottom:8px}
 #maps{position:absolute;inset-inline:12px;bottom:46px;background:rgba(14,15,18,.94);border:1px solid var(--ln);border-radius:10px;padding:10px;display:none}
 #maps.show{display:block}
 #maps .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px}
-#maps .grid{direction:ltr;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+#maps .grid{direction:ltr;display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
 #maps figure{margin:0;text-align:center;cursor:pointer}
 #maps canvas{width:100%;aspect-ratio:1;background:#000;border:1px solid #2a2f36;border-radius:4px;cursor:pointer}
 #maps figcaption{font-size:11.5px;color:var(--mu);margin-top:3px;direction:ltr}
@@ -81,6 +81,7 @@ import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 /* =====================================================================
    1. الإعدادات والقوالب
    ===================================================================== */
+const tq=new URLSearchParams(location.search).get('tex'),TEXDEF=['1024','2048','4096'].includes(tq)?tq:matchMedia('(pointer:coarse)').matches?'2048':'4096';
 const DEF={seed:11,
  trunk:true,trunkH:2.0,trunkR:.16,lean:.5,wobble:.35,flare:.55,paint:'bands',paintH:1.05,
  attractors:1500,step:.1,influence:.8,kill:.2,tropism:.2,thick:.95,cut:false,
@@ -88,6 +89,7 @@ const DEF={seed:11,
  leavesOn:true,leaves:18000,leafSize:.17,sizeVar:.3,fold:.22,droop:.12,hue:0,sat:1,leafVar:.5,gloss:.65,sss:.8,
  pit:'paved',plaza:3.4,grass:true,fallen:140,
  lamp:true,lampOn:true,stakes:false,
+ road:true,texRes:TEXDEF,swPattern:'0',swScheme:'0',curbType:'granite',swW:4.5,swW2:3.5,treeOff:1.5,curbH:.15,roadW:8,lanes:'2',center:'dashed',edgeLines:true,crosswalk:true,crossX:7,age:.35,wear:.3,wet:0,furniture:true,
  light:'golden',sunAz:62,sunEl:30,wind:.35,exposure:1,turn:false};
 const PRE=[
  ['شجرة شارع مقصوصة (المرجع)',{}],
@@ -116,9 +118,11 @@ const SC=[
  ['الأوراق',[['leavesOn','إظهار الأوراق','c'],['leaves','الكثافة',1000,40000,500],['leafSize','طول الورقة (م)',.06,.35,.005],['sizeVar','تباين الحجم',0,.7,.05],['fold','طيّ النصل',0,.5,.01],['droop','الانحناء للأسفل',0,.5,.01],['hue','درجة اللون',-.08,.1,.005],['sat','التشبّع',.3,1.5,.05],['leafVar','تباين الأوراق',0,1,.05],['gloss','اللمعان',0,1,.05],['sss','النفاذية الضوئية',0,2,.05]]],
  ['الحوض والأرضية',[['pit','نوع الحوض','s',[['paved','حوض مرصوف + عشب'],['grate','شبكة حديد زهر'],['none','بدون']]],['plaza','حجم الرصيف',2.2,5,.1],['grass','العشب','c'],['fallen','الأوراق المتساقطة',0,600,10]]],
  ['الملحقات',[['lamp','عمود إنارة كلاسيكي','c'],['lampOn','تشغيل المصباح','c'],['stakes','دعامات الشجرة','c']]],
+ ['الطريق والرصيف (خامات 4K)',[['road','تفعيل نظام الطريق','c'],['texRes','دقة الخامات','s',[['1024','1K'],['2048','2K'],['4096','4K']]],['swPattern','نمط بلاط الرصيف','s',[['0','متعرّج Herringbone'],['1','رابط جاري'],['2','بلاطات 50 سم'],['3','نسيج سلة']]],['swScheme','لون البلاط','s',[['0','رمادي'],['1','رملي دافئ'],['2','فحمي'],['3','مختلط']]],['curbType','حجر الحافة','s',[['granite','غرانيت'],['concrete','خرساني']]],['swW','عرض الرصيف',2.5,7,.1],['treeOff','بُعد الشجرة عن الحافة',1.2,3,.05],['curbH','ارتفاع الحافة',.08,.25,.01],['roadW','عرض الطريق',5,16,.1],['lanes','عدد المسارات','s',[['2','2'],['4','4']]],['center','الخط الأوسط','s',[['dashed','متقطع أبيض'],['double','مزدوج أصفر'],['solid','متصل أبيض']]],['edgeLines','خطوط الحافة','c'],['crosswalk','ممر مشاة + منحدر','c'],['crossX','موقع الممر',-12,12,.1],['age','عمر الأسفلت',0,1,.05],['wear','تآكل الطلاء',0,1,.05],['wet','البلل والبرك',0,1,.05],['furniture','غطاء صرف + بالوعات','c']]],
  ['البيئة والإضاءة',[['light','الإضاءة','s',[['golden','غروب ذهبي'],['day','نهار'],['overcast','غائم'],['night','ليل']]],['sunAz','اتجاه الشمس',0,360,1],['sunEl','ارتفاع الشمس',5,85,1],['wind','قوة الرياح',0,1.5,.05],['exposure','التعريض',.4,2,.05],['turn','دوران تلقائي','c']]]];
-const LIVE=new Set(['light','sunAz','sunEl','wind','exposure','turn','sss','lampOn']);
+const LIVE=new Set(['wear','wet','light','sunAz','sunEl','wind','exposure','turn','sss','lampOn']);
 const TEXK=new Set(['hue','sat','gloss']);
+const ROADTEX={texRes:null,swPattern:['pavers'],swScheme:['pavers'],age:['asphalt']};
 
 /* =====================================================================
    2. المحرك
@@ -423,7 +427,7 @@ const PAVE=.1,SOIL=.055;
 function worldUV(g,s=.55,ox=0,oz=0){const p=g.attributes.position,n=g.attributes.normal,uv=g.attributes.uv;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);if(Math.abs(n.getY(i))>.5)uv.setXY(i,x*s+ox,z*s+oz);else uv.setXY(i,(x+z)*s+ox,y*s+oz)}}
 function tint(g,c){const n=g.attributes.position.count,a=new Float32Array(n*3);for(let i=0;i<n;i++){a[i*3]=c[0];a[i*3+1]=c[1];a[i*3+2]=c[2]}g.setAttribute('color',new THREE.BufferAttribute(a,3))}
 function buildSite(root,r,info){
- const ground=mesh(new THREE.PlaneGeometry(160,160).rotateX(-Math.PI/2),M.asphalt,false,true);root.add(ground);
+ const ground=mesh(new THREE.PlaneGeometry(160,160).rotateX(-Math.PI/2),M.asphalt,false,true);if(RC)ground.position.y=-RC.siteY-.06;root.add(ground);
  const pitIn=1.25,kw=.13,half=P.plaza/2,inner=pitIn/2+kw,hasPit=P.pit!=='none';let base=0;
  if(hasPit){base=SOIL;const tiles=[],gap=.014;
   const strip=(x0,x1,z0,z1,alongX)=>{const L0=alongX?x0:z0,L1=alongX?x1:z1,W0=alongX?z0:x0,W1=alongX?z1:x1,rows=Math.max(1,Math.round((W1-W0)/.55)),rw=(W1-W0)/rows;
@@ -431,8 +435,8 @@ function buildSite(root,r,info){
      const cx=alongX?(a+b)/2:W0+rw*(j+.5),cz=alongX?W0+rw*(j+.5):(a+b)/2,sx=alongX?b-a:rw,sz=alongX?rw:b-a,hgt=PAVE+(r()-.5)*.012;
      const g=new RoundedBoxGeometry(sx-gap,hgt,sz-gap,2,.018);g.rotateX((r()-.5)*.012);g.rotateZ((r()-.5)*.012);g.translate(cx,hgt/2,cz);worldUV(g,.55,r()*10,r()*10);
      const t=.82+.2*r(),warm=(r()-.5)*.05;tint(g,[t+warm,t,t-warm]);tiles.push(g);a=b}}};
-  strip(-half,half,inner,half,true);strip(-half,half,-half,-inner,true);strip(-half,-inner,-inner,inner,false);strip(inner,half,-inner,inner,false);
-  const pave=mergeGeometries(tiles);tiles.forEach(g=>g.dispose());root.add(mesh(pave,M.stone));
+  if(!RC){strip(-half,half,inner,half,true);strip(-half,half,-half,-inner,true);strip(-half,-inner,-inner,inner,false);strip(inner,half,-inner,inner,false);
+  const pave=mergeGeometries(tiles);tiles.forEach(g=>g.dispose());root.add(mesh(pave,M.stone))}
   const kh=.17,ks=[];for(const sd of[-1,1]){let g=new RoundedBoxGeometry(pitIn+2*kw-.01,kh,kw-.01,2,.02);g.translate(0,kh/2,sd*(pitIn/2+kw/2));worldUV(g,.7,r()*5,r()*5);tint(g,[.95,.94,.9]);ks.push(g);
    g=new RoundedBoxGeometry(kw-.01,kh,pitIn-.01,2,.02);g.translate(sd*(pitIn/2+kw/2),kh/2,0);worldUV(g,.7,r()*5,r()*5);tint(g,[.93,.92,.88]);ks.push(g)}
   const kerb=mergeGeometries(ks);ks.forEach(g=>g.dispose());root.add(mesh(kerb,M.kerb));
@@ -451,7 +455,7 @@ function buildSite(root,r,info){
    im.count=k;im.receiveShadow=true;im.userData.nm=M.grassNM;root.add(im)}}
  if(P.fallen>0){const n=P.fallen,R0=Math.max(P.cw,P.cd)*.62+.6,per=[[],[],[],[]],m=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),c=new THREE.Color();
   for(let k=0;k<n;k++){const a=r()*6.28,rr=R0*Math.sqrt(r()),x=Math.cos(a)*rr,z=Math.sin(a)*rr*(P.cd/P.cw),ax=Math.abs(x),az=Math.abs(z);
-   let y=.004+k*1e-5;if(hasPit){if(ax<half&&az<half)y=ax<pitIn/2&&az<pitIn/2?SOIL+.035*Math.exp(-((Math.hypot(x,z)/.45)**2))+.006:ax<inner&&az<inner?.175:PAVE+.006}
+   if(RC&&z<RC.nBack)continue;let y=.004+k*1e-5;if(hasPit&&ax<inner&&az<inner)y=ax<pitIn/2&&az<pitIn/2?SOIL+.035*Math.exp(-((Math.hypot(x,z)/.45)**2))+.006:.175;else if(RC)y=RC.surf(x,z)-RC.siteY+.005+k*1e-5;else if(hasPit&&ax<half&&az<half)y=PAVE+.006;
    if(Math.hypot(x,z)<P.trunkR*1.3+.05)continue;
    e.set(-Math.PI/2+(r()-.5)*.35,0,r()*6.28,'XZY');q.setFromEuler(e);const s=P.leafSize*(.8+.4*r());m.compose(V(x,y,z),q,V(s,s,s));
    const t=r(),g=t<.25;c.setRGB(1,1,1).multiplyScalar(.7+.35*r());if(t<.3)c.multiply(new THREE.Color(.8,1,.55));else if(t>.85)c.multiply(new THREE.Color(.75,.55,.4));per[(r()*4)|0].push(m.clone(),c.clone(),g)}
@@ -464,7 +468,7 @@ function lathe(pts,seg,mat,flute){const g=new THREE.LatheGeometry(pts.map(([x,y]
  if(flute){const p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);const f=flute(y);if(!f)continue;const a=Math.atan2(z,x),k=1-.09*f*Math.pow(.5+.5*Math.cos(a*12),3);p.setX(i,x*k);p.setZ(i,z*k)}g.computeVertexNormals()}
  return mesh(g,mat)}
 let lampLight=null;
-function buildLamp(root,info){const g=new THREE.Group();g.position.set(P.plaza/2+.55,0,.35);
+function buildLamp(root,info){const g=new THREE.Group();if(RC){const lx=3.2,lz=RC.nB-.4;g.position.set(lx,RC.swN(lx,lz),lz)}else g.position.set(P.plaza/2+.55,0,.35);
  g.add(lathe([[0,0],[.27,0],[.27,.06],[.25,.08],[.23,.08],[.2,.3],[.215,.32],[.215,.36],[.17,.4],[.12,.46],[.1,.56],[.095,.62],[.115,.64],[.115,.69],[.085,.71],[0,.71]],8,M.metal));
  const col=[[0,.7],[.085,.7],[.085,.76],[.075,.8],[.072,1.1],[.095,1.13],[.095,1.18],[.072,1.21],[.066,2.15],[.088,2.18],[.088,2.23],[.066,2.26],[.062,3.0],[.075,3.04],[.11,3.12],[.115,3.18],[.09,3.2],[0,3.2]];
  g.add(lathe(col,48,M.metal,y=>(y>.84&&y<1.06)||(y>1.26&&y<2.1)||(y>2.3&&y<2.95)?ss(0,.04,Math.min(Math.abs(y-.84),Math.abs(y-1.26),Math.abs(y-2.3))):0));
@@ -485,6 +489,259 @@ function buildStakes(root,base){const h=2.1;for(const sd of[-1,1]){const s=mesh(
  const tie=mesh(new THREE.TorusGeometry(P.trunkR*.8+.02,.012,6,20),M.tie);tie.rotation.x=Math.PI/2;tie.position.set(0,base+1.6,0);root.add(tie)}
 
 /* =====================================================================
+   6ب. نظام الطريق والرصيف — خامات PBR تُخبز على الـGPU حتى 4K + هندسة إجرائية
+   ===================================================================== */
+const BLIB=`
+uint _pcg(uvec3 v){v=v*1664525u+1013904223u;v.x+=v.y*v.z;v.y+=v.z*v.x;v.z+=v.x*v.y;v^=v>>16u;v.x+=v.y*v.z;v.y+=v.z*v.x;v.z+=v.x*v.y;return v.x;}
+float hs(vec2 p,float s){return float(_pcg(uvec3(ivec3(int(floor(p.x))+65536,int(floor(p.y))+65536,int(s)+7))))*(1./4294967295.);}
+vec2 hs2(vec2 p,float s){return vec2(hs(p,s),hs(p,s+57.));}
+float vn(vec2 p,vec2 per,float s){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);
+ return mix(mix(hs(mod(i,per),s),hs(mod(i+vec2(1,0),per),s),u.x),mix(hs(mod(i+vec2(0,1),per),s),hs(mod(i+vec2(1,1),per),s),u.x),u.y);}
+float fbm(vec2 p,vec2 per,float s,int o){float v=0.,a=.5,n=0.;for(int k=0;k<8;k++){if(k>=o)break;v+=a*vn(p,per,s+float(k)*13.);n+=a;p*=2.;per*=2.;a*=.5;}return v/n;}
+vec3 wor(vec2 p,vec2 per,float s){vec2 i=floor(p),f=fract(p);float f1=9.,f2=9.,id=0.;
+ for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){vec2 g=vec2(x,y),c=mod(i+g,per),r=g+hs2(c,s)-f;float d=length(r);if(d<f1){f2=f1;f1=d;id=hs(c,s+99.);}else if(d<f2)f2=d;}
+ return vec3(f1,f2,id);}
+`;
+/* كل خامة: field() تعيد (الارتفاع، المعرّف، القناع) و surf() تعيد اللون/الخشونة/المعدنية. القيم الدورية تضمن تبليطاً بلا حواف */
+const RMAT={
+ asphalt:{tile:4,hm:.01,aoR:.0015,aoK:1.1,scale:1,u:{uAge:{value:.35}},field:`
+vec4 field(vec2 uv){
+ vec3 w1=wor(uv*280.,vec2(280.),1.);float r1=.3+.2*w1.z,d1=w1.x/r1,st1=d1<1.?sqrt(1.-d1*d1):0.;
+ vec3 w2=wor(uv*760.,vec2(760.),2.);float r2=.28+.2*w2.z,d2=w2.x/r2,st2=d2<1.?sqrt(1.-d2*d2):0.;
+ float und=fbm(uv*6.,vec2(6.),4.,4),sand=fbm(uv*1400.,vec2(1400.),3.,2);
+ float binder=.42-.14*uAge+.06*sand+.12*und;
+ float s1=.5+.3*st1*(.75+.25*fract(w1.z*91.7))+.12*und,s2=.46+.2*st2+.12*und;
+ float h=binder,id=0.,m=0.;
+ if(st2>0.&&s2>h){h=s2;id=w2.z;m=.5;}
+ if(st1>0.&&s1>h){h=s1;id=w1.z;m=1.;}
+ h-=smoothstep(.68,.76,fbm(uv*48.,vec2(48.),6.,4))*.18*(1.-m)*uAge;
+ h-=smoothstep(.985,1.,hs(floor(uv*2048.),8.))*.08*(1.-m);
+ return vec4(h,id,m,0.);}`,surf:`
+void surf(vec2 uv,float h,float id,float m,float ao,vec3 n,out vec3 alb,out float ro,out float me){
+ float sn=fbm(uv*900.,vec2(900.),9.,3);
+ vec3 bind=mix(vec3(.022,.022,.024),vec3(.12,.115,.108),uAge)*(.8+.4*sn);
+ vec3 sc=id<.5?vec3(.2)*(.7+.8*id):id<.82?vec3(.3,.26,.22)*(.7+.5*id):vec3(.55,.54,.5);
+ float ex=clamp(mix(.12,.85,uAge)*m+smoothstep(.62,.8,h)*.3*m,0.,1.);
+ alb=mix(bind,sc,ex);ro=mix(mix(.62,.9,uAge)*(.94+.12*sn),.55,ex*.8);me=0.;}`},
+ pavers:{tile:2,hm:.02,aoR:.002,aoK:1,scale:1,u:{uPattern:{value:0},uScheme:{value:0}},field:`
+vec4 brick(vec2 p,out vec2 anc,out float ori){int pat=int(uPattern+.5);ori=0.;
+ if(pat==0){vec2 c=floor(p);int d=int(mod(c.x-c.y,4.));vec2 o=d==0?vec2(0):d==1?vec2(1,0):d==3?vec2(0,1):vec2(0,2);vec2 a=c-o;anc=a;
+  if(d<2)return vec4(p-a,2.,1.);ori=1.;return vec4(p-a-vec2(0,1),1.,2.);}
+ if(pat==1){float r=floor(p.y),x=p.x+mod(r,2.),bx=floor(x/2.);anc=vec2(bx,r);return vec4(x-bx*2.,p.y-r,2.,1.);}
+ if(pat==2){vec2 c=floor(p/5.);anc=c;return vec4(p-c*5.,5.,5.);}
+ vec2 B=floor(p/2.),l=p-B*2.;if(mod(B.x+B.y,2.)<.5){float s=floor(l.y);anc=B*2.+vec2(0,s);return vec4(l.x,l.y-s,2.,1.);}
+ float s=floor(l.x);anc=B*2.+vec2(s,0);ori=1.;return vec4(l.x-s,l.y,1.,2.);}
+vec4 field(vec2 uv){vec2 p=uv*20.,anc;float ori;vec4 b=brick(p,anc,ori);anc=mod(anc,20.);
+ float id=hs(anc,11.+ori*31.);vec2 q=b.xy,s=b.zw;
+ float ed=min(min(q.x,s.x-q.x),min(q.y,s.y-q.y))+(fbm(uv*360.,vec2(360.),12.,3)-.5)*.035;
+ float top=.74+.05*(id-.5)+.03*((q.x/s.x-.5)*(hs(anc,13.+ori)-.5)+(q.y/s.y-.5)*(hs(anc,14.+ori)-.5));
+ float tx=.035*fbm(uv*1100.,vec2(1100.),15.,3)+.03*fbm(uv*140.,vec2(140.),16.,3);
+ float prof=sqrt(smoothstep(.022,.075,ed)),sand=.3+.06*fbm(uv*800.,vec2(800.),17.,2);
+ float h=mix(sand,top+tx,prof)-smoothstep(.975,1.,hs(floor(uv*2600.),18.))*.035*prof;
+ return vec4(h,id,prof,0.);}`,surf:`
+void surf(vec2 uv,float h,float id,float m,float ao,vec3 n,out vec3 alb,out float ro,out float me){int sc=int(uScheme+.5);vec3 c0,c1,c2;
+ if(sc==0){c0=vec3(.44,.43,.41);c1=vec3(.34,.335,.325);c2=vec3(.52,.51,.48);}
+ else if(sc==1){c0=vec3(.56,.46,.35);c1=vec3(.46,.36,.27);c2=vec3(.64,.56,.45);}
+ else if(sc==2){c0=vec3(.2,.2,.21);c1=vec3(.15,.15,.16);c2=vec3(.28,.28,.29);}
+ else{c0=vec3(.52,.46,.39);c1=vec3(.33,.32,.31);c2=vec3(.55,.33,.25);}
+ vec3 pc=(id<.45?c0:id<.8?c1:c2)*(.9+.2*fract(id*13.7))*(.88+.24*fbm(uv*260.,vec2(260.),21.,4));
+ float g=hs(floor(uv*2400.),22.);pc=g>.965?mix(pc,vec3(.78,.76,.7),.55):g<.03?pc*.55:pc;
+ pc*=1.-.25*(1.-smoothstep(.3,1.,m));
+ vec3 sandC=vec3(.37,.33,.27)*(.75+.5*fbm(uv*700.,vec2(700.),23.,2));
+ float moss=smoothstep(.6,.7,fbm(uv*10.,vec2(10.),24.,4));
+ vec3 jc=mix(sandC,vec3(.1,.16,.04)*(.7+.6*fbm(uv*900.,vec2(900.),25.,2)),moss);
+ float k=smoothstep(.15,.85,m);alb=mix(jc,pc,k);
+ ro=mix(.96,.8+.1*fbm(uv*300.,vec2(300.),26.,2)-.08*smoothstep(.7,.9,h),k);me=0.;}`},
+ granite:{tile:1,hm:.004,aoR:.001,aoK:.6,scale:.5,field:`
+vec4 field(vec2 uv){vec3 w=wor(uv*300.,vec2(300.),31.);float g=smoothstep(0.,.12,w.y-w.x);
+ float h=.5+.18*fbm(uv*500.,vec2(500.),32.,3)+.08*g*(w.z-.5)+.1*fbm(uv*8.,vec2(8.),33.,3);return vec4(h,w.z,g,0.);}`,surf:`
+void surf(vec2 uv,float h,float id,float m,float ao,vec3 n,out vec3 alb,out float ro,out float me){
+ vec3 c=id<.22?vec3(.06,.06,.065):id<.62?vec3(.62,.6,.57):id<.92?vec3(.4,.4,.41):vec3(.6,.42,.38);
+ c*=.85+.3*fbm(uv*40.,vec2(40.),34.,3);alb=mix(c*.8,c,m);ro=(id>=.62&&id<.92)?.55:.75;me=0.;}`},
+ concrete:{tile:2,hm:.005,aoR:.0015,aoK:.8,scale:.5,field:`
+vec4 field(vec2 uv){vec3 w=wor(uv*420.,vec2(420.),43.);float pore=w.z>.86?smoothstep(.22,.1,w.x):0.;
+ float h=.5+.1*fbm(uv*30.,vec2(30.),41.,5)+.08*fbm(uv*700.,vec2(700.),42.,3)+.04*smoothstep(.55,.75,fbm(uv*220.,vec2(220.),44.,3))-.25*pore;
+ return vec4(h,w.z,pore,0.);}`,surf:`
+void surf(vec2 uv,float h,float id,float m,float ao,vec3 n,out vec3 alb,out float ro,out float me){
+ float a=fbm(uv*6.,vec2(6.),45.,4),st=fbm(uv*vec2(4.,40.),vec2(4.,40.),46.,4);
+ alb=vec3(.5,.49,.46)*(.85+.25*a)*(.92+.12*st)*(1.-.45*m);ro=.86+.08*a;me=0.;}`},
+ manhole:{tile:.76,hm:.015,aoR:.002,aoK:1,scale:.25,clamp:true,field:`
+vec4 field(vec2 uv){vec2 c=uv-.5;float r=length(c)*2.,a=atan(c.y,c.x),h=.35,m=0.;
+ vec2 q=mat2(.7071,-.7071,.7071,.7071)*c*22.,f=abs(fract(q)-.5);float dia=smoothstep(.36,.3,max(f.x,f.y));
+ if(r<.6){h=.35+.25*dia;m=dia;}
+ if(r>.66&&r<.82){float ang=(a+3.14159)/6.28318*44.,seg=floor(ang),lr=fract(ang),rr=(r-.66)/.16;
+  float gl=(hs(vec2(seg,floor(rr*5.)),51.)>.45&&hs(vec2(seg,floor(lr*3.)),52.)>.3&&mod(seg,11.)>=1.)?1.:0.;
+  float ins=step(.15,lr)*step(lr,.85)*step(.1,rr)*step(rr,.9);h=.35+.22*gl*ins;m=gl*ins;}
+ h=max(h,.6*smoothstep(.015,0.,abs(r-.63)));h=max(h,.6*smoothstep(.015,0.,abs(r-.85)));if(r>.9)h=.62;
+ if(length(c-vec2(.36,0.))<.025||length(c+vec2(.36,0.))<.025)h=.05;
+ return vec4(h+.03*fbm(uv*300.,vec2(300.),53.,3),0.,m,0.);}`,surf:`
+void surf(vec2 uv,float h,float id,float m,float ao,vec3 n,out vec3 alb,out float ro,out float me){
+ float rust=smoothstep(.45,.7,fbm(uv*30.,vec2(30.),54.,4))*(1.-smoothstep(.4,.55,h)),top=smoothstep(.5,.6,h);
+ vec3 iron=vec3(.12,.115,.11)*(.8+.4*fbm(uv*200.,vec2(200.),55.,3));
+ alb=mix(mix(iron,vec3(.24,.12,.05),rust),vec3(.42,.41,.4),top*.8);ro=mix(mix(.7,.95,rust),.3,top);me=mix(mix(.7,0.,rust),.95,top);}`}};
+const BVS='void main(){gl_Position=vec4(position.xy,0.,1.);}';
+const bakeCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1),bakeScene=new THREE.Scene(),bakeQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2));bakeQuad.frustumCulled=false;bakeScene.add(bakeQuad);
+function bakeRT(N,srgb,wrap,mips=true){return new THREE.WebGLRenderTarget(N,N,{depthBuffer:false,generateMipmaps:mips,minFilter:mips?THREE.LinearMipmapLinearFilter:THREE.NearestFilter,magFilter:mips?THREE.LinearFilter:THREE.NearestFilter,wrapS:wrap,wrapT:wrap,anisotropy:mips?R.capabilities.getMaxAnisotropy():1,colorSpace:srgb?THREE.SRGBColorSpace:THREE.NoColorSpace})}
+/* الرسم على مربعات 1024² يتجنب مهلة الـGPU، والـmipmaps تُولَّد مرة واحدة بعد آخر مربع */
+async function runPass(mat,rt,N,prog){bakeQuad.material=mat;const mips=rt.texture.generateMipmaps;R.initRenderTarget(rt);rt.texture.generateMipmaps=false;const T=Math.min(N,1024),n=N/T;rt.scissorTest=true;
+ for(let j=0;j<n;j++)for(let i=0;i<n;i++){if(i===n-1&&j===n-1)rt.texture.generateMipmaps=mips;rt.scissor.set(i*T,j*T,T,T);R.setRenderTarget(rt);R.render(bakeScene,bakeCam);prog&&prog();await tick()}
+ rt.scissorTest=false;R.setRenderTarget(null)}
+async function bakeMat(key,N,prog){const D=RMAT[key],wrap=D.clamp?THREE.ClampToEdgeWrapping:THREE.RepeatWrapping,ud=Object.keys(D.u||{}).map(k=>`uniform float ${k};`).join('');
+ const U={uRes:{value:new THREE.Vector2(N,N)},...(D.u||{})},hRT=bakeRT(N,false,wrap,false);
+ const m1=new THREE.ShaderMaterial({uniforms:U,vertexShader:BVS,fragmentShader:`precision highp float;uniform vec2 uRes;${ud}${BLIB}${D.field}
+void main(){vec4 f=field(gl_FragCoord.xy/uRes);float h=clamp(f.x,0.,1.)*255.;gl_FragColor=vec4(floor(h)/255.,fract(h),f.y,f.z);}`});
+ await runPass(m1,hRT,N,prog);
+ const U2={...U,uH:{value:hRT.texture},uHm:{value:D.hm},uTex:{value:D.tile/N},uAoR:{value:D.aoR},uAoK:{value:D.aoK},uOut:{value:0},uWrap:{value:D.clamp?0:1}};
+ const m2=new THREE.ShaderMaterial({uniforms:U2,vertexShader:BVS,fragmentShader:`precision highp float;uniform vec2 uRes;uniform sampler2D uH;uniform float uHm,uTex,uAoR,uAoK,uOut,uWrap;${ud}${BLIB}${D.surf}
+ivec2 W(ivec2 c){ivec2 N=ivec2(uRes);return uWrap>.5?c-N*ivec2(floor(vec2(c)/vec2(N))):clamp(c,ivec2(0),N-1);}
+float H(ivec2 c){vec4 t=texelFetch(uH,W(c),0);return t.r+t.g/255.;}
+void main(){ivec2 c=ivec2(gl_FragCoord.xy);vec4 t=texelFetch(uH,c,0);float h=t.r+t.g/255.;
+ float a=H(c+ivec2(-1,1)),b=H(c+ivec2(0,1)),d=H(c+ivec2(1,1)),e=H(c+ivec2(-1,0)),f=H(c+ivec2(1,0)),g=H(c+ivec2(-1,-1)),i=H(c+ivec2(0,-1)),j=H(c+ivec2(1,-1));
+ float dx=((d+2.*f+j)-(a+2.*e+g))/8.,dy=((a+2.*b+d)-(g+2.*i+j))/8.,k=uHm/uTex;
+ vec3 n=normalize(vec3(-dx*k,-dy*k,1.));
+ float occ=0.;for(int r=0;r<3;r++){float rad=uAoR*pow(3.,float(r)),px=max(1.,rad/uTex);for(int s=0;s<8;s++){float an=float(s)*.7854+float(r)*.39;
+  ivec2 o=ivec2(round(vec2(cos(an),sin(an))*px));occ+=clamp((H(c+o)-h)*uHm/rad,0.,1.);}}
+ float ao=clamp(1.-occ/24.*uAoK*2.,0.,1.);
+ vec3 alb;float ro,me;surf(gl_FragCoord.xy/uRes,h,t.b,t.a,ao,n,alb,ro,me);
+ gl_FragColor=uOut<.5?vec4(alb*mix(1.,ao,.5),1.):uOut<1.5?vec4(n*.5+.5,h):vec4(ao,clamp(ro,.04,1.),me,1.);}`});
+ const out={key,N,albedo:bakeRT(N,true,wrap),normal:bakeRT(N,false,wrap),orm:bakeRT(N,false,wrap)};
+ for(const[k,o]of[['albedo',0],['normal',1],['orm',2]]){U2.uOut.value=o;await runPass(m2,out[k],N,prog)}
+ m1.dispose();m2.dispose();hRT.dispose();return out}
+const RTX={};let bakeQ=Promise.resolve();
+function bakeRoad(keys){return bakeQ=bakeQ.then(async()=>{const N=Math.min(+P.texRes,R.capabilities.maxTextureSize);keys=keys||Object.keys(RMAT);
+ RMAT.asphalt.u.uAge.value=P.age;RMAT.pavers.u.uPattern.value=+P.swPattern;RMAT.pavers.u.uScheme.value=+P.swScheme;
+ const sz=k=>Math.max(256,Math.round(N*RMAT[k].scale)),total=keys.reduce((s,k)=>s+4*Math.max(1,(sz(k)/1024)**2),0);let done=0;
+ for(const k of keys){const old=RTX[k];RTX[k]=await bakeMat(k,sz(k),()=>{const t=`خبز خامات الطريق ${N/1024}K… ${Math.round(++done/total*100)}%`;say(t);busy.textContent=t});
+  applyRoadMat(k);if(old)['albedo','normal','orm'].forEach(m=>old[m].dispose())}
+ busy.textContent='جاري البناء…'})}
+
+/* ---- مواد السطوح: Parallax Occlusion Mapping + تنويع ماكرو + بلل وبرك ---- */
+const RU={uWet:{value:0},uWear:{value:.3},uLanes:{value:new THREE.Vector4()},uLaneN:{value:2}};
+const POMF=`vec2 pom(vec2 uv,vec3 V,vec2 dx,vec2 dy){if(V.z<.05)return uv;float n=mix(28.,8.,V.z),L=1./n,cur=0.;vec2 st=-V.xy/max(V.z,.25)*uPom*L,p=uv;
+ float d=1.-textureGrad(normalMap,uv,dx,dy).a;for(int i=0;i<32;i++){if(cur>=d||float(i)>=n)break;p+=st;cur+=L;d=1.-textureGrad(normalMap,p,dx,dy).a;}
+ vec2 pr=p-st;float af=d-cur,bf=(1.-textureGrad(normalMap,pr,dx,dy).a)-cur+L;return mix(p,pr,af/(af-bf+1e-5));}`;
+const MACRO=['',`
+{diffuseColor.rgb*=.8+.4*fbm(wp*.1,vec2(1e5),71.,4);
+ for(int i=0;i<4;i++){if(float(i)>=uLaneN)break;float dz=vWP.z-uLanes[i];wheel=max(wheel,1.-smoothstep(.12,.42,abs(abs(dz)-.85)));
+  diffuseColor.rgb*=1.-.45*(1.-smoothstep(.05,.4,abs(dz)))*smoothstep(.45,.75,fbm(wp*vec2(.6,2.),vec2(1e5),72.,4));}
+ diffuseColor.rgb*=1.+.14*wheel;
+ vec3 w=wor(wp*.22,vec2(1e5),73.);snake=(1.-smoothstep(.006,.02,(w.y-w.x)/.22))*smoothstep(.45,.6,fbm(wp*.3,vec2(1e5),74.,3));
+ vec2 cs=vec2(6.,2.2),pc=floor(wp/cs),pl=fract(wp/cs);
+ if(hs(pc,75.)<.14){vec2 lo=vec2(.1+.2*hs(pc,76.),.15),hi=vec2(.5+.4*hs(pc,77.),.85);float inR=step(lo.x,pl.x)*step(pl.x,hi.x)*step(lo.y,pl.y)*step(pl.y,hi.y);
+  vec2 dd=min(pl-lo,hi-pl)*cs;diffuseColor.rgb*=mix(1.,.62,inR);snake=max(snake,inR*(1.-smoothstep(.01,.035,min(dd.x,dd.y))));}
+ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.012),snake*.9);}`,`
+{diffuseColor.rgb*=.86+.28*fbm(wp*.35,vec2(1e5),81.,4);
+ vec2 g=floor(wp*1.6),gc=(g+.2+.6*hs2(g,82.))/1.6;float gum=hs(g,83.)<.22?1.-smoothstep(.006,.011+.006*hs(g,84.),length(wp-gc)):0.;
+ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.13,.125,.12),gum*.85);}`];
+const MARK=`
+{if(fbm(wp*2.5,vec2(1e5),61.,4)*.65+hT*.45<uWear*.85)discard;diffuseColor.rgb*=.82+.25*hT;float tire=0.;
+ for(int i=0;i<4;i++){if(float(i)>=uLaneN)break;tire=max(tire,1.-smoothstep(.1,.35,abs(abs(vWP.z-uLanes[i])-.85)));}diffuseColor.rgb*=1.-.4*tire*uWear;}`;
+function patchSurface(mat,o){mat.userData.key=o.key;mat.userData.normalOnly=!!o.mark;
+ mat.customProgramCacheKey=()=>'road:'+[o.pom?1:0,o.macro||0,o.mark?1:0,o.pud?1:0,mat.map?1:0].join('');
+ mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,RU);sh.uniforms.uPom={value:o.pom||0};
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
+  const G=n=>THREE.ShaderChunk[n].replace(/texture2D\(\s*(map|normalMap|roughnessMap|metalnessMap|aoMap)\s*,\s*v\w+Uv\s*\)/g,'textureGrad( $1, sUv, sDx, sDy )');
+  let f=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform float uWet,uWear,uPom,uLaneN;uniform vec4 uLanes;');
+  f=f.replace('void main() {',BLIB+POMF+`\nvoid main() {\n vec2 sUv=vNormalMapUv,sDx=dFdx(sUv),sDy=dFdy(sUv),wp=vWP.xz;\n`+(o.pom?` {vec3 V=normalize(cameraPosition-vWP);sUv=pom(sUv,vec3(V.x,-V.z,V.y),sDx,sDy);}\n`:'')+
+   ` float hT=textureGrad(normalMap,sUv,sDx,sDy).a,wheel=0.,snake=0.,pud=0.;`);
+  f=f.replace('#include <map_fragment>',G('map_fragment')+MACRO[o.macro||0]+(o.mark?MARK:'')+
+   `\n{float pn=fbm(wp*.33,vec2(1e5),91.,4)*.8+(1.-hT)*.35;pud=${o.pud?'uWet*smoothstep(1.02-uWet*.5,1.06-uWet*.5,pn)':'0.'};diffuseColor.rgb*=mix(1.,.55,uWet*.8)*mix(1.,.6,pud);}`);
+  f=f.replace('#include <roughnessmap_fragment>',G('roughnessmap_fragment')+'\nroughnessFactor=mix(mix(roughnessFactor*mix(1.,.82,wheel),.32,snake)*(1.-.5*uWet),.04,pud);');
+  f=f.replace('#include <metalnessmap_fragment>',G('metalnessmap_fragment')).replace('#include <aomap_fragment>',G('aomap_fragment'));
+  f=f.replace('#include <normal_fragment_maps>',G('normal_fragment_maps')+'\nnormal=normalize(mix(normal,nonPerturbedNormal,pud*.92));');
+  sh.fragmentShader=f}}
+const RM={};
+function roadMat(key,o,extra={}){const m=new THREE.MeshStandardMaterial({metalness:1,roughness:1,...extra});patchSurface(m,{key,...o});return m}
+RM.road=roadMat('asphalt',{pom:.01/4,macro:1,pud:1});
+RM.walk=roadMat('pavers',{pom:.02/2,macro:2,pud:1});
+RM.gutter=roadMat('concrete',{pom:.005/2,pud:1},{color:0xd8d4cc});
+RM.tactile=roadMat('concrete',{pom:.005/2,pud:1},{color:0xf2b81c});
+RM.curbG=roadMat('granite',{},{vertexColors:true});
+RM.curbC=roadMat('concrete',{},{vertexColors:true});
+RM.wall=roadMat('concrete',{},{color:0xc9c4ba});
+RM.markW=roadMat('asphalt',{mark:1,pud:1},{color:0xefede6,metalness:0,roughness:.5,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+RM.markY=roadMat('asphalt',{mark:1,pud:1},{color:0xe8b020,metalness:0,roughness:.5,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+RM.manhole=new THREE.MeshStandardMaterial({metalness:1,roughness:1});RM.manhole.userData.key='manhole';
+RM.dome=new THREE.MeshStandardMaterial({color:0xe3a915,roughness:.55});
+const HOLEM=new THREE.MeshBasicMaterial({color:0x040404});
+function applyRoadMat(key){const s=RTX[key];for(const m of Object.values(RM)){if(m.userData.key!==key)continue;m.normalMap=s.normal.texture;
+ if(!m.userData.normalOnly){m.map=s.albedo.texture;m.roughnessMap=m.metalnessMap=m.aoMap=s.orm.texture}m.needsUpdate=true}}
+
+/* ---- المقطع العرضي للشارع ---- */
+let RC=null;
+function roadCfg(){const curbW=.16,gut=.3,cH=P.curbH,cz=Math.max(P.treeOff,.755+curbW+.25),W=P.roadW,fz=cz+W,sl=.015,L=100,cw=3,xc=P.crossX,rampD=1.5;
+ const drop=x=>P.crosswalk?(cH-.02)*(1-ss(cw/2,cw/2+1.2,Math.abs(x-xc))):0;
+ const crown=(W/2-gut)*.02,ln=+P.lanes,lw=(W-2*gut)/ln,lanes=[...Array(ln)].map((_,i)=>cz+gut+lw*(i+.5));
+ const roadY=(x,z)=>{const t=z-cz;if(t<gut)return -.012*(1-t/gut);if(t>W-gut)return -.012*(1-(W-t)/gut);let y=crown*(1-Math.pow(Math.abs(t-W/2)/(W/2-gut),1.4));
+  for(const lz of lanes){const d=Math.abs(Math.abs(z-lz)-.85);y-=.004*Math.exp(-d*d/.04)}return y};
+ const nB=cz-curbW,nBack=cz-P.swW,fB=fz+curbW,fBack=fz+P.swW2;
+ const swN=(x,z)=>cH+(nB-z)*sl-drop(x)*ss(nB-rampD,nB,z),swF=(x,z)=>cH+(z-fB)*sl-drop(x)*ss(fB+rampD,fB,z);
+ const surf=(x,z)=>z<nB?swN(x,z):z<cz?cH-drop(x):z<=fz?roadY(x,z):z<fB?cH-drop(x):swF(x,z);
+ return{curbW,gut,cH,cz,W,fz,L,cw,xc,drop,lanes,lw,roadY,nB,nBack,fB,fBack,swN,swF,surf,siteY:swN(0,0)-PAVE}}
+const lines=(a,b,d,ex)=>{const s=new Set(),n=Math.ceil((b-a)/d);for(let i=0;i<=n;i++)s.add(+(a+(b-a)*i/n).toFixed(4));ex.forEach(v=>{if(v>a&&v<b)s.add(+v.toFixed(4))});return[...s].sort((p,q)=>p-q)};
+function gridGeo(x0,x1,z0,z1,dx,dz,yf,holes=[],exX=[],exZ=[],tile=2){const ax=lines(x0,x1,dx,exX),az=lines(z0,z1,dz,exZ),nx=ax.length,Pp=[],U=[],I=[];
+ for(const z of az)for(const x of ax){Pp.push(x,yf(x,z),z);U.push(x/tile,-z/tile)}
+ for(let j=0;j<az.length-1;j++)for(let i=0;i<nx-1;i++){const cx=(ax[i]+ax[i+1])/2,cz=(az[j]+az[j+1])/2;if(holes.some(h=>cx>h[0]&&cx<h[1]&&cz>h[2]&&cz<h[3]))continue;const a=j*nx+i,b=a+nx;I.push(a,b,a+1,b,b+1,a+1)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(Pp,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return g}
+/* حجر الحافة: مقطع بحافة مستديرة يُسحب على طول الشارع بقطع 1م وفواصل 6مم، وينخفض عند المنحدر */
+function curbGeo(side){const c=RC,zf=side>0?c.cz:c.fz,r=.022,an=5,Pp=[],U=[],C=[],I=[],va=new THREE.Vector3(),vb=new THREE.Vector3(),vc=new THREE.Vector3(),hint=new THREE.Vector3(0,.7,.7*side),rr=rng(side>0?91:92);
+ const prof=x=>{const t=c.cH-c.drop(x),p=[[-c.curbW,t],[-r,t]];for(let k=1;k<=an;k++){const a=k/an*Math.PI/2;p.push([-r+r*Math.sin(a),t-r+r*Math.cos(a)])}p.push([.012,-.03]);return p};
+ const tri=(a,b,d,h)=>{va.fromArray(Pp,a*3);vb.fromArray(Pp,b*3).sub(va);vc.fromArray(Pp,d*3).sub(va);if(vb.cross(vc).dot(h)<0)I.push(a,d,b);else I.push(a,b,d)};
+ const vtx=(x,dz,y,u,v,t)=>{Pp.push(x,y,zf+side*dz);U.push(u,v);C.push(t,t*.99,t*.97);return Pp.length/3-1};
+ for(let x0=-c.L/2;x0<c.L/2-.5;x0+=1){const xa=x0+.003,xb=x0+.997,nx=P.crosswalk&&Math.abs(x0+.5-c.xc)<c.cw/2+2.5?8:1,t=.86+.22*rr(),rows=[];
+  for(let k=0;k<=nx;k++){const x=xa+(xb-xa)*k/nx,p=prof(x);let v=0;rows.push(p.map(([dz,y],i)=>{if(i)v+=Math.hypot(dz-p[i-1][0],y-p[i-1][1]);return vtx(x,dz,y,x,v,t)}))}
+  for(let k=0;k<nx;k++)for(let i=0;i<rows[k].length-1;i++){const a=rows[k][i],b=rows[k+1][i],d=rows[k][i+1],e=rows[k+1][i+1];tri(a,b,d,hint);tri(b,e,d,hint)}
+  for(const[x,sx]of[[xa,-1],[xb,1]]){const q=[[-c.curbW,-.25],...prof(x),[.012,-.25]],ids=q.map(([dz,y])=>vtx(x,dz,y,dz,y,t)),h=new THREE.Vector3(sx,0,0);for(let i=1;i<ids.length-1;i++)tri(ids[0],ids[i],ids[i+1],h)}}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(Pp,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(I);g.computeVertexNormals();return g}
+function markGeo(rects){const Pp=[],U=[],I=[];
+ for(const[x0,x1,z0,z1]of rects){const nx=Math.max(1,Math.ceil((x1-x0)/.5)),nz=Math.max(1,Math.ceil((z1-z0)/.25)),b=Pp.length/3;
+  for(let j=0;j<=nz;j++)for(let i=0;i<=nx;i++){const x=x0+(x1-x0)*i/nx,z=z0+(z1-z0)*j/nz;Pp.push(x,RC.roadY(x,z)+.004,z);U.push(x/4,-z/4)}
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const a=b+j*(nx+1)+i,c=a+nx+1;I.push(a,c,a+1,c,c+1,a+1)}}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(Pp,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return g}
+function buildRoad(root){const c=RC,L=c.L,g=new THREE.Group();root.add(g);
+ const add=(geo,mat,cast=false)=>{const m=mesh(geo,mat,cast,true);g.add(m);return m};
+ const inner=.755,hole=P.pit!=='none'?[[-inner,inner,-inner,inner]]:[],xs=[-inner,inner],ca=c.xc-c.cw/2,cb=c.xc+c.cw/2;
+ if(P.crosswalk)xs.push(ca,cb,ca-1.2,cb+1.2);
+ add(gridGeo(-L/2,L/2,c.nBack,c.nB,.25,.2,c.swN,hole,xs,[-inner,inner]),RM.walk);
+ add(gridGeo(-L/2,L/2,c.fB,c.fBack,.25,.2,c.swF,[],xs),RM.walk);
+ add(gridGeo(-L/2,L/2,c.cz+c.gut,c.fz-c.gut,.5,.2,c.roadY,[],[],[],4),RM.road);
+ add(gridGeo(-L/2,L/2,c.cz,c.cz+c.gut,.5,.1,c.roadY),RM.gutter);
+ add(gridGeo(-L/2,L/2,c.fz-c.gut,c.fz,.5,.1,c.roadY),RM.gutter);
+ const cm=P.curbType==='granite'?RM.curbG:RM.curbC;add(curbGeo(1),cm,true);add(curbGeo(-1),cm,true);
+ for(const[zb,s]of[[c.nBack,-1],[c.fBack,1]]){const w=new THREE.BoxGeometry(L,.6,.3);w.translate(0,.25,zb+s*.15);worldUV(w,.5);add(w,RM.wall,true);
+  const cp=new RoundedBoxGeometry(L,.07,.4,2,.015);cp.translate(0,.585,zb+s*.15);worldUV(cp,.5);add(cp,RM.wall,true)}
+ /* علامات الطريق */
+ const zr0=c.cz+c.gut,zr1=c.fz-c.gut,zc=c.cz+c.W/2,gA=ca-1.6,gB=cb+1.6,W_=[],Y_=[];
+ const solid=(z,w,o)=>{if(P.crosswalk)o.push([-L/2,gA,z-w/2,z+w/2],[gB,L/2,z-w/2,z+w/2]);else o.push([-L/2,L/2,z-w/2,z+w/2])};
+ const dashed=(z,w,o)=>{for(let x=-L/2;x<L/2-3;x+=8)if(!(P.crosswalk&&x+3>gA&&x<gB))o.push([x,x+3,z-w/2,z+w/2])};
+ if(P.edgeLines){solid(zr0+.2,.12,W_);solid(zr1-.2,.12,W_)}
+ const ln=c.lanes.length;for(let i=1;i<ln;i++){const z=zr0+c.lw*i;if(i===ln/2){if(P.center==='double'){solid(z-.1,.1,Y_);solid(z+.1,.1,Y_)}else if(P.center==='solid')solid(z,.12,W_);else dashed(z,.12,W_)}else dashed(z,.12,W_)}
+ if(P.crosswalk){for(let z=zr0+.25;z+.5<=zr1-.2;z+=1)W_.push([ca,cb,z,z+.5]);W_.push([cb+1,cb+1.3,zr0,zc-.2],[ca-1.3,ca-1,zc+.2,zr1])}
+ if(W_.length)add(markGeo(W_),RM.markW);if(Y_.length)add(markGeo(Y_),RM.markY);
+ RU.uLanes.value.set(...[0,1,2,3].map(i=>c.lanes[i]??-999));RU.uLaneN.value=ln;
+ /* منحدر المشاة وبلاط إرشادي للمكفوفين */
+ if(P.crosswalk){const dome=new THREE.CylinderGeometry(.011,.017,.005,12);
+  for(const[zA,zB,yf]of[[c.nB-.8,c.nB,c.swN],[c.fB,c.fB+.8,c.swF]]){add(gridGeo(ca,cb,zA,zB,.4,.4,(x,z)=>yf(x,z)+.004),RM.tactile);
+   const pts=[];for(let x=ca+.033;x<cb;x+=.0667)for(let z=zA+.033;z<zB;z+=.0667)pts.push([x,z]);
+   const im=new THREE.InstancedMesh(dome,RM.dome,pts.length),m=new THREE.Matrix4();pts.forEach(([x,z],i)=>{m.makeTranslation(x,yf(x,z)+.0065,z);im.setMatrixAt(i,m)});im.receiveShadow=true;g.add(im)}}
+ /* غطاء صرف صحي وبالوعات */
+ if(P.furniture){const mx=-7.5,mz=c.lanes[0],my=c.roadY(mx,mz),cv=mesh(new THREE.CylinderGeometry(.38,.38,.03,48),[M.iron,RM.manhole,M.iron],false,true);cv.position.set(mx,my-.01,mz);cv.rotation.y=.6;g.add(cv);
+  const fr=mesh(new THREE.LatheGeometry([[.46,-.03],[.44,.004],[.38,.006],[.38,-.03]].map(([a,b])=>new THREE.Vector2(a,b)),48),M.iron,false,true);fr.position.set(mx,my,mz);g.add(fr);
+  for(const[x,z]of[[-3.5,c.cz+.17],[12,c.fz-.17]]){const y=c.roadY(x,z)+.003,w=.5,d=.3,ho=new THREE.Mesh(new THREE.PlaneGeometry(w-.04,d-.04).rotateX(-Math.PI/2),HOLEM);ho.position.set(x,y+.001,z);g.add(ho);
+   for(const[a,b,e,ox,oz]of[[w,.03,.03,0,(d-.03)/2],[w,.03,.03,0,-(d-.03)/2],[.03,.03,d,(w-.03)/2,0],[.03,.03,d,-(w-.03)/2,0]]){const m=mesh(new THREE.BoxGeometry(a,b,e),M.iron);m.position.set(x+ox,y+.005,z+oz);g.add(m)}
+   for(let i=0;i<9;i++){const m=mesh(new THREE.BoxGeometry(.022,.025,d-.04),M.iron);m.position.set(x-w/2+.045+i*(w-.09)/8,y+.004,z);g.add(m)}}}}
+/* قراءة الخرائط المخبوزة: معاينة مصغّرة وتنزيل بالدقة الكاملة */
+const thumbRT=new THREE.WebGLRenderTarget(256,256,{depthBuffer:false});
+const copyMat=new THREE.ShaderMaterial({uniforms:{tS:{value:null},uM:{value:0}},vertexShader:BVS,fragmentShader:`precision highp float;uniform sampler2D tS;uniform float uM;
+void main(){vec4 t=texture2D(tS,gl_FragCoord.xy/256.);vec3 c=uM<.5?pow(t.rgb,vec3(1./2.2)):uM<1.5?t.rgb:uM<2.5?vec3(t.r):uM<3.5?vec3(t.g):uM<4.5?vec3(t.b):vec3(t.a);gl_FragColor=vec4(c,1.);}`});
+function pixToCanvas(buf,N,mode){const c=canvasOf(N,N),g=c.getContext('2d'),im=g.createImageData(N,N),d=im.data,ch=[0,0,0,1,2,3][mode];
+ for(let y=0;y<N;y++){const s=(N-1-y)*N*4,o=y*N*4;for(let x=0;x<N*4;x+=4){if(mode<2){d[o+x]=buf[s+x];d[o+x+1]=buf[s+x+1];d[o+x+2]=buf[s+x+2]}else d[o+x]=d[o+x+1]=d[o+x+2]=buf[s+x+ch];d[o+x+3]=255}}
+ g.putImageData(im,0,0);return c}
+function rtThumb(rt,mode){copyMat.uniforms.tS.value=rt.texture;copyMat.uniforms.uM.value=mode;bakeQuad.material=copyMat;R.setRenderTarget(thumbRT);R.render(bakeScene,bakeCam);
+ const b=new Uint8Array(256*256*4);R.readRenderTargetPixels(thumbRT,0,0,256,256,b);R.setRenderTarget(null);return pixToCanvas(b,256,mode<2?1:2)}
+function rtFull(rt,mode){const N=rt.width,b=new Uint8Array(N*N*4);R.readRenderTargetPixels(rt,0,0,N,N,b);return pixToCanvas(b,N,mode)}
+
+/* =====================================================================
    7. البناء والإضاءة والمعالجة اللاحقة
    ===================================================================== */
 let ROOT=null,INFO={},buildMs=0;
@@ -492,11 +749,11 @@ function disposeTree(o){o.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.i
 function build(){const t0=performance.now();
  if(ROOT){disposeTree(ROOT);scene.remove(ROOT)}ROOT=new THREE.Group();scene.add(ROOT);
  const r=rng(P.seed);ph0=r()*10;
- const site=new THREE.Group(),tree=new THREE.Group();ROOT.add(site,tree);
+ RC=P.road?roadCfg():null;const TR=new THREE.Group(),site=new THREE.Group(),tree=new THREE.Group();TR.add(site,tree);ROOT.add(TR);TR.position.y=RC?RC.siteY:0;if(RC)buildRoad(ROOT);
  const base=buildSite(site,rng(P.seed*7+3),INFO);tree.position.y=base;
  INFO=buildTree(tree,r);
  if(P.lamp)buildLamp(ROOT,INFO);else lampLight=null;
- if(P.stakes&&P.trunk)buildStakes(ROOT,base);
+ if(P.stakes&&P.trunk)buildStakes(TR,base);
  const hP=P.paint==='bands'?[-1,P.paintH*.42,P.paintH*.6,P.paintH]:P.paint==='solid'?[-1,P.paintH,-1,-1]:[-1,-1,-1,-1];
  PU.uPaint.value.set(...hP);PU.uPaintOn.value=P.paint==='none'||!P.trunk?0:1;
  let tris=0;ROOT.traverse(o=>{if(!o.isMesh)return;const g=o.geometry,n=(g.index?g.index.count:g.attributes.position.count)/3;tris+=n*(o.isInstancedMesh?o.count:1)});INFO.tris=tris;
@@ -504,13 +761,13 @@ function build(){const t0=performance.now();
 function applyLight(){const L=LIGHTS[P.light];scene.background=new THREE.Color(L.bg);scene.fog=new THREE.FogExp2(L.bg,L.fog);
  hemi.color.set(L.hs);hemi.groundColor.set(L.hg);hemi.intensity=L.hi;scene.environmentIntensity=L.env;R.toneMappingExposure=L.exp*P.exposure;
  const az=P.sunAz*Math.PI/180,el=P.sunEl*Math.PI/180;sunDir.set(Math.cos(el)*Math.sin(az),Math.sin(el),Math.cos(el)*Math.cos(az));
- const tgt=V(0,(INFO.cy||2)*.5,0),Rb=Math.max(P.plaza,P.cw,P.cd)*.75+1.5;sun.target.position.copy(tgt);sun.position.copy(tgt).addScaledVector(sunDir,30);
+ const tgt=V(0,(INFO.cy||2)*.5,0),Rb=Math.max(P.plaza,P.cw,P.cd)*.75+(RC?3:1.5);sun.target.position.copy(tgt);sun.position.copy(tgt).addScaledVector(sunDir,30);
  Object.assign(sun.shadow.camera,{left:-Rb,right:Rb,top:Rb,bottom:-Rb,near:5,far:60});sun.shadow.camera.updateProjectionMatrix();
  if(sun.shadow.mapSize.x!==Q.shadow){sun.shadow.mapSize.set(Q.shadow,Q.shadow);sun.shadow.map?.dispose();sun.shadow.map=null}
  sun.color.set(L.sun);sun.intensity=L.sunI;
  SU.uSSSCol.value.copy(sun.color).multiplyScalar(L.sunI*L.sss);SU.uSSS.value=P.sss;
  const on=P.lampOn?L.lamp:0;M.glass.emissiveIntensity=2.4*on;M.flame.color.setRGB(5*on+.15,3.2*on+.1,1.4*on+.05);if(lampLight)lampLight.intensity=9*on;
- WU.uWind.value=P.wind;controls.autoRotate=P.turn}
+ WU.uWind.value=P.wind;RU.uWet.value=P.wet;RU.uWear.value=P.wear;controls.autoRotate=P.turn}
 let composer=null,gtao=null,bloom=null;
 function setupComposer(){if(composer){composer.renderTarget1.dispose();composer.renderTarget2.dispose();gtao?.dispose?.()}
  const w=view.clientWidth||800,h=view.clientHeight||600,pr=Math.min(devicePixelRatio||1,Q.pr);R.setPixelRatio(pr);R.setSize(w,h,false);
@@ -567,16 +824,20 @@ function syncUI(){for(const k in ctrls)ctrls[k]();const s=ui.querySelector('#see
 let rbT=0,texT=0;
 function set(k,v){P[k]=v;if(k==='light'){const L=LIGHTS[v];}
  if(LIVE.has(k)){applyLight();return}
+ if(k in ROADTEX){clearTimeout(texT);busy.classList.add('on');texT=setTimeout(async()=>{await bakeRoad(ROADTEX[k]);build();busy.classList.remove('on');drawMaps()},250);return}
  if(TEXK.has(k)){clearTimeout(texT);busy.classList.add('on');texT=setTimeout(async()=>{await makeLeafTextures(false);build();busy.classList.remove('on');drawMaps()},180);return}
  rebuild()}
 function rebuild(now){clearTimeout(rbT);busy.classList.add('on');rbT=setTimeout(()=>{build();busy.classList.remove('on')},now?0:140)}
 function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 /* عارض خرائط PBR */
-const mapSel=document.getElementById('mapSet');[['leaf','ورقة (أطلس)'],['dry','ورقة جافة'],['bark','لحاء'],['stone','حجر الرصيف'],['asphalt','أسفلت'],['soil','تربة/نشارة'],['metal','معدن العمود']].forEach(([v,t])=>mapSel.add(new Option(t,v)));
+const mapSel=document.getElementById('mapSet');[['r_asphalt','أسفلت الطريق (GPU)'],['r_pavers','بلاط الرصيف (GPU)'],['r_granite','حافة غرانيت (GPU)'],['r_concrete','خرسانة (GPU)'],['r_manhole','غطاء صرف (GPU)'],['leaf','ورقة (أطلس)'],['dry','ورقة جافة'],['bark','لحاء'],['stone','حجر الرصيف'],['asphalt','أسفلت'],['soil','تربة/نشارة'],['metal','معدن العمود']].forEach(([v,t])=>mapSel.add(new Option(t,v)));
 mapSel.onchange=drawMaps;document.getElementById('mapClose').onclick=()=>document.getElementById('maps').classList.remove('show');
 function onBlack(src,mask){const c=canvasOf(src.width,src.height),g=c.getContext('2d');g.drawImage(src,0,0);if(mask){g.globalCompositeOperation='destination-in';g.drawImage(mask,0,0)}
  const o=canvasOf(src.width,src.height),go=o.getContext('2d');go.fillStyle='#000';go.fillRect(0,0,o.width,o.height);go.drawImage(c,0,0);return o}
 function drawMaps(){if(!document.getElementById('maps').classList.contains('show')||!LEAF)return;const k=mapSel.value,grid=document.getElementById('mapGrid');grid.innerHTML='';
+ if(k.startsWith('r_')){const key=k.slice(2),st=RTX[key];if(!st)return;
+  [['albedo',0,'Albedo'],['normal',1,'Normal'],['orm',3,'Roughness'],['orm',4,'Metallic'],['orm',2,'AO'],['normal',5,'Height']].forEach(([rk,md,l])=>{const f=document.createElement('figure'),c=rtThumb(st[rk],md);
+   f.appendChild(c);f.insertAdjacentHTML('beforeend',`<figcaption>${l} · ${st.N}²</figcaption>`);f.onclick=()=>{msg('جاري تجهيز '+l+' '+st.N+'²…');setTimeout(()=>rtFull(st[rk],md).toBlob(b=>{dl(b,`${key}_${l}_${st.N}.png`);msg('تم تنزيل '+l)}),30)};grid.appendChild(f)});return}
  const set=k==='leaf'||k==='dry'?{albedo:onBlack(k==='dry'?LEAF.dry:LEAF.albedo,LEAF.maskA),normal:onBlack(LEAF.normal,LEAF.maskA),rough:onBlack(LEAF.rough,LEAF.maskA),metal:onBlack(LEAF.metal,LEAF.maskA),ao:onBlack(LEAF.ao,LEAF.maskA)}:T[k];
  [['albedo','Albedo (Base Color)'],['normal','Normal'],['rough','Roughness'],['metal','Metallic'],['ao','Ambient Occlusion']].forEach(([m,l])=>{const f=document.createElement('figure'),c=canvasOf(256,256);c.getContext('2d').drawImage(set[m],0,0,256,256);
   f.appendChild(c);f.insertAdjacentHTML('beforeend',`<figcaption>${l}</figcaption>`);f.onclick=()=>set[m].toBlob(b=>dl(b,`${k}_${m}.png`));grid.appendChild(f)})}
@@ -593,8 +854,8 @@ function exportGLB(){msg('جاري التصدير…');const rgba=onBlack(LEAF.a
 const clock=new THREE.Clock();let fr=0,ft=0,fps=0;
 function loop(){requestAnimationFrame(loop);if(contextLost||!composer)return;const dt=Math.min(clock.getDelta(),.1);WU.uTime.value+=dt;controls.update();
  SU.uSunView.value.copy(sunDir).transformDirection(cam.matrixWorldInverse);R.info.reset();composer.render();
- fr++;ft+=dt;if(ft>.5){fps=fr/ft;fr=0;ft=0;stat.textContent=`FPS ${fps.toFixed(0)} · draw ${R.info.render.calls} · tris ${(INFO.tris/1e3).toFixed(0)}k\nleaves ${INFO.leaves} · nodes ${INFO.nodes} · build ${buildMs.toFixed(0)}ms · ${QN}`}}
-(async()=>{try{await makeTextures();say('بناء الشجرة…');await tick();buildUI();setupComposer();build();document.getElementById('load').remove();window.__treeReady=true;window.__tree={cam,controls,get P(){return P},set,build};loop()}
+ fr++;ft+=dt;if(ft>.5){fps=fr/ft;fr=0;ft=0;stat.textContent=`FPS ${fps.toFixed(0)} · draw ${R.info.render.calls} · tris ${(INFO.tris/1e3).toFixed(0)}k\nleaves ${INFO.leaves} · nodes ${INFO.nodes} · build ${buildMs.toFixed(0)}ms · ${QN} · tex ${P.texRes/1024}K`}}
+(async()=>{try{await makeTextures();await bakeRoad();say('بناء الشجرة…');await tick();buildUI();setupComposer();build();document.getElementById('load').remove();window.__treeReady=true;window.__tree={cam,controls,get P(){return P},set,build};loop()}
  catch(e){window.__treeErr=1;console.error(e);say('خطأ: '+e.message)}})();
 </script>
 </body>
