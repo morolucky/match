@@ -23,5 +23,12 @@
 - **الهندسة**: طريق بانحدار عرضي 2% وأخاديد عجلات، ومزاريب خرسانية، وحجر حافة بمقطع مستدير وفواصل 6مم. عند ممر المشاة منحدر منخفض للرصيف وبلاط إرشادي بنتوءات حقيقية. خطوط مسارات (متقطع/متصل/مزدوج أصفر) بطلاء متآكل يتبع حصى الأسفلت، وممر حمار وحشي، وخطوط توقف، وغطاء صرف، وبالوعات، وجدار حد.
 - عارض الخرائط يتيح تنزيل كل خريطة PNG بدقتها الكاملة (حتى 4096²).
 
+## أشجار الشارع — تنوّع بلا تكرار
+- صف أشجار على الرصيفين (حتى 8 + 10)، يتجنّب ممر المشاة وعمود الإنارة، ولكل شجرة حوض خاص بها.
+- **9 أنواع**: فيكس مقصوص، كرة مشذّبة، زيتون، بوانسيانا حمراء، جاكرندا بنفسجية، كاسيا صفراء، خريفية، برقوق أرجواني، شتلة حديثة بدعامات.
+- خمس مجموعات أنواع: مختلطة، خضراء، مزهرة، خريفية، مقصوصة موحّدة. الأنواع تدور على ترتيب مخلوط، فلا تتكرر الشجرة نفسها بجوار نفسها.
+- لكل شجرة بذرة وحجم وانحناء خاص بها، ولون أوراق يتغير عبر إعادة تلوين لكل ورقة على الـGPU (تحافظ على العروق)، مع أزهار بلون ثانٍ. ولكل شجرة أيضاً لون لحاء، وطلاء جذع (بدون/كامل/شريطان)، وطور رياح مستقل.
+- الأشجار تحفظ في ذاكرة مؤقتة، فتعديل الشجرة الرئيسية لا يعيد بناء الصف. أوراق أشجار الصف بدقة هندسية أخف (LOD).
+
 ## English
-Single-file procedural street-tree generator. Includes a sidewalk/road system with GPU-baked tileable PBR textures up to 4K (asphalt, pavers, granite, concrete, manhole), POM, wetness and puddles, curb ramps, tactile paving and lane markings. Other features: a full procedural PBR leaf map set with a viewer, space-colonization branching, wind/SSS/lime-paint shader injection, GTAO + bloom, quality tiers, and GLB export.
+Single-file procedural street-tree generator. Includes a sidewalk/road system with GPU-baked tileable PBR textures up to 4K (asphalt, pavers, granite, concrete, manhole), POM, wetness and puddles, curb ramps, tactile paving and lane markings. Street-tree rows: 9 species, per-tree seed, size, leaf/flower tint, bark tint, trunk paint and wind phase, no repeated neighbours, and cached rebuilds. Other features: a full procedural PBR leaf map set with a viewer, space-colonization branching, wind/SSS/lime-paint shader injection, GTAO + bloom, quality tiers, and GLB export.
