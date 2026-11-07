@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f3ef" />
+    <meta name="description" content="A modular Parisian facade and PBR material workshop." />
+    <title>Maison Modulaire — Facade Workshop</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Maison Modulaire home"><span class="brand-mark">M<span>·</span></span><span>MAISON <b>MODULAIRE</b><small>ARCHITECTURAL WORKSHOP</small></span></a>
+        <div class="project-name"><span class="status-dot"></span><span>PARISIAN RESIDENCE</span><span class="project-separator">/</span><span class="project-muted">UNTITLED 04</span></div>
+        <div class="top-actions"><button class="icon-button" id="reset-view" aria-label="Reset camera" title="Reset camera">↗</button><button class="export-button" id="export-model"><span>↓</span> EXPORT MODEL</button></div>
+      </header>
+      <main class="workspace">
+        <aside class="sidebar">
+          <div class="sidebar-heading"><div><span class="eyebrow">SCENE BUILDER</span><h1>Facade study <span>04</span></h1></div><button id="randomize" class="square-button" title="Generate a new facade seed">⤨</button></div>
+          <div class="rule"></div>
+          <section class="control-section">
+            <div class="section-title"><span>01</span><h2>Composition</h2><button class="chevron">−</button></div>
+            <label class="field-label" for="floors">Building height <output id="floor-output">5 floors</output></label>
+            <input id="floors" type="range" min="3" max="7" value="5" />
+            <div class="range-ends"><span>3 FLOORS</span><span>7 FLOORS</span></div>
+            <label class="field-label second-field" for="bays">Facade width <output id="bay-output">7 bays</output></label>
+            <input id="bays" type="range" min="4" max="9" value="7" />
+            <div class="range-ends"><span>NARROW</span><span>WIDE</span></div>
+            <div class="select-field"><span>Roofline</span><select id="roofline"><option value="mansard">Classic mansard</option><option value="cornice">Flat cornice</option><option value="parapet">Stone parapet</option></select></div>
+          </section>
+          <div class="rule"></div>
+          <section class="control-section">
+            <div class="section-title"><span>02</span><h2>Facade modules</h2><button class="chevron">−</button></div>
+            <div class="module-row"><span class="module-icon window-icon">▥</span><span><b>French windows</b><small>DOUBLE SASH · LIMESTONE</small></span><button class="toggle active" aria-label="Toggle French windows" data-feature="windows"><i></i></button></div>
+            <div class="module-row"><span class="module-icon balcony-icon">▤</span><span><b>Wrought iron</b><small>ORNATE BALCONY RAIL</small></span><button class="toggle active" aria-label="Toggle balconies" data-feature="balconies"><i></i></button></div>
+            <div class="module-row"><span class="module-icon shop-icon">▱</span><span><b>Retail frontage</b><small>GROUND FLOOR · 3 VARIANTS</small></span><button class="toggle active" aria-label="Toggle retail frontage" data-feature="shops"><i></i></button></div>
+            <div class="module-row"><span class="module-icon detail-icon">✳</span><span><b>Carved details</b><small>KEYSTONES · PILASTERS · TRIM</small></span><button class="toggle active" aria-label="Toggle carved details" data-feature="details"><i></i></button></div>
+          </section>
+          <div class="rule"></div>
+          <section class="control-section material-section">
+            <div class="section-title"><span>03</span><h2>Stone material</h2><button class="chevron">−</button></div>
+            <div class="material-card"><div class="material-preview"><span class="material-swatch"></span><span class="material-meta"><b>Haussmann limestone</b><small>PROCEDURAL · TILEABLE · 1K</small></span><span class="more">···</span></div>
+              <label class="field-label weather-label" for="weathering">Surface patina <output id="weather-output">32%</output></label><input id="weathering" type="range" min="0" max="100" value="32" />
+              <div class="map-list"><span>MAP CHANNELS</span><div><b>ALBEDO</b><b>ROUGHNESS</b><b>NORMAL</b></div></div>
+              <button id="export-textures" class="texture-button"><span>▧</span> GENERATE &amp; EXPORT MAPS <span class="button-arrow">↗</span></button>
+            </div>
+          </section>
+          <footer class="sidebar-footer"><span>ASSET LIBRARY</span><span>06 MODULES <b>↗</b></span></footer>
+        </aside>
+        <section class="stage" aria-label="Interactive 3D facade preview">
+          <div class="stage-top"><div class="stage-label"><span class="live-dot"></span> LIVE PREVIEW <span class="stage-divider">/</span> <span id="scene-stats">5 FLOORS · 7 BAYS</span></div><div class="view-controls"><button id="wireframe" class="view-button">◇ <span>WIREFRAME</span></button><button id="shadows" class="view-button selected">◐ <span>SHADOWS</span></button><button id="fullscreen" class="view-button" title="Toggle full screen">⛶</button></div></div>
+          <div id="canvas-wrap"><div class="canvas-grain"></div><div class="loading-label" id="loading">ASSEMBLING FACADE MODULES <span>···</span></div><div class="axis-label">N ↑ <span>FRONT ELEVATION</span></div></div>
+          <div class="stage-bottom"><div><span class="orbit-hint"><i>⟲</i> DRAG TO ORBIT</span><span class="zoom-hint">SCROLL TO ZOOM</span></div><div class="coordinate">X 0.0 &nbsp; Y 0.0 &nbsp; Z 0.0 <span>▦</span></div></div>
+          <nav class="module-strip" aria-label="Building module library"><div class="strip-title"><span>MODULAR KIT</span><small>SNAP-READY COMPONENTS</small></div><button class="kit-card selected" data-module="facade"><span class="kit-illustration wall-illustration">▤</span><b>Wall bay</b><small>2.6 × 2.8 M</small></button><button class="kit-card" data-module="window"><span class="kit-illustration window-illustration">▥</span><b>Window</b><small>FRENCH · 1.2 M</small></button><button class="kit-card" data-module="balcony"><span class="kit-illustration rail-illustration">▦</span><b>Balcony</b><small>CAST IRON · 2.6 M</small></button><button class="kit-card" data-module="shop"><span class="kit-illustration shop-illustration">▱</span><b>Shopfront</b><small>RETAIL · 2.6 M</small></button><button class="kit-card" data-module="cornice"><span class="kit-illustration cornice-illustration">▰</span><b>Cornice</b><small>STONE · 2.6 M</small></button><button class="add-module" id="add-module" aria-label="Add selected module">+</button></nav>
+        </section>
+      </main>
+      <div class="toast" id="toast" role="status"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
