@@ -90,6 +90,7 @@ const DEF={seed:11,
  pit:'paved',plaza:3.4,grass:true,fallen:140,
  lamp:true,lampOn:true,stakes:false,
  road:true,texRes:TEXDEF,swPattern:'0',swScheme:'0',curbType:'granite',swW:4.5,swW2:3.5,treeOff:1.5,curbH:.15,roadW:8,lanes:'2',center:'dashed',edgeLines:true,crosswalk:true,crossX:7,age:.35,wear:.3,wet:0,furniture:true,
+ rowOn:true,rowN:4,rowF:5,spacing:9,rowMix:'mixed',rowColorVar:.6,rowSizeVar:.6,rowPaint:1,rowDetail:.55,rowSeed:7,
  light:'golden',sunAz:62,sunEl:30,wind:.35,exposure:1,turn:false};
 const PRE=[
  ['شجرة شارع مقصوصة (المرجع)',{}],
@@ -119,6 +120,7 @@ const SC=[
  ['الحوض والأرضية',[['pit','نوع الحوض','s',[['paved','حوض مرصوف + عشب'],['grate','شبكة حديد زهر'],['none','بدون']]],['plaza','حجم الرصيف',2.2,5,.1],['grass','العشب','c'],['fallen','الأوراق المتساقطة',0,600,10]]],
  ['الملحقات',[['lamp','عمود إنارة كلاسيكي','c'],['lampOn','تشغيل المصباح','c'],['stakes','دعامات الشجرة','c']]],
  ['الطريق والرصيف (خامات 4K)',[['road','تفعيل نظام الطريق','c'],['texRes','دقة الخامات','s',[['1024','1K'],['2048','2K'],['4096','4K']]],['swPattern','نمط بلاط الرصيف','s',[['0','متعرّج Herringbone'],['1','رابط جاري'],['2','بلاطات 50 سم'],['3','نسيج سلة']]],['swScheme','لون البلاط','s',[['0','رمادي'],['1','رملي دافئ'],['2','فحمي'],['3','مختلط']]],['curbType','حجر الحافة','s',[['granite','غرانيت'],['concrete','خرساني']]],['swW','عرض الرصيف',2.5,7,.1],['treeOff','بُعد الشجرة عن الحافة',1.2,3,.05],['curbH','ارتفاع الحافة',.08,.25,.01],['roadW','عرض الطريق',5,16,.1],['lanes','عدد المسارات','s',[['2','2'],['4','4']]],['center','الخط الأوسط','s',[['dashed','متقطع أبيض'],['double','مزدوج أصفر'],['solid','متصل أبيض']]],['edgeLines','خطوط الحافة','c'],['crosswalk','ممر مشاة + منحدر','c'],['crossX','موقع الممر',-12,12,.1],['age','عمر الأسفلت',0,1,.05],['wear','تآكل الطلاء',0,1,.05],['wet','البلل والبرك',0,1,.05],['furniture','غطاء صرف + بالوعات','c']]],
+ ['أشجار الشارع (تنوّع بلا تكرار)',[['rowOn','صف أشجار على الطريق','c'],['rowMix','الأنواع','s',[['mixed','مختلطة (9 أنواع)'],['green','خضراء متنوعة'],['flowering','مزهرة (أحمر/بنفسجي/أصفر)'],['autumn','خريفية'],['clipped','مقصوصة موحّدة']]],['rowN','عدد الأشجار — هذا الرصيف',0,8,1],['rowF','عدد الأشجار — الرصيف المقابل',0,10,1],['spacing','المسافة بين الأشجار',6,14,.5],['rowColorVar','تباين الألوان',0,1,.05],['rowSizeVar','تباين الأحجام',0,1,.05],['rowPaint','احتمال طلاء الجذوع',0,1,.05],['rowDetail','كثافة الأوراق (LOD)',.2,1,.05],['rowSeed','بذرة الصف',1,999,1]]],
  ['البيئة والإضاءة',[['light','الإضاءة','s',[['golden','غروب ذهبي'],['day','نهار'],['overcast','غائم'],['night','ليل']]],['sunAz','اتجاه الشمس',0,360,1],['sunEl','ارتفاع الشمس',5,85,1],['wind','قوة الرياح',0,1.5,.05],['exposure','التعريض',.4,2,.05],['turn','دوران تلقائي','c']]]];
 const LIVE=new Set(['wear','wet','light','sunAz','sunEl','wind','exposure','turn','sss','lampOn']);
 const TEXK=new Set(['hue','sat','gloss']);
@@ -256,11 +258,11 @@ function grassCards(){const S=256,a=canvasOf(S,S),m=canvasOf(S,S),ga=a.getContex
 /* =====================================================================
    5. المواد + حقن الشيدر (رياح، نفاذية الأوراق، طلاء الجير)
    ===================================================================== */
-const WU={uTime:{value:0},uWind:{value:.35},uWindDir:{value:new THREE.Vector2(.8,.6).normalize()},uCrownBase:{value:2},uCrownH:{value:2}};
+const WU={uTime:{value:0},uWind:{value:.35},uWindDir:{value:new THREE.Vector2(.8,.6).normalize()},uCrownBase:{value:2},uCrownH:{value:2},uWindPh:{value:0}};
 const SU={uSunView:{value:new THREE.Vector3(0,1,0)},uSSSCol:{value:new THREE.Color(1,1,1)},uSSS:{value:.8}};
-const PU={uPaint:{value:new THREE.Vector4(-1,.45,.6,1.05)},uLime:{value:new THREE.Color(0xe8e5da)},uPaintOn:{value:1}};
-const WIND=`uniform float uTime,uWind,uCrownBase,uCrownH;uniform vec2 uWindDir;
-vec3 windOff(vec3 p){float h=clamp((p.y-uCrownBase*.55)/max(uCrownH+uCrownBase*.45,.1),0.,1.4),b=h*h,t=uTime;
+const PU={uPaint:{value:new THREE.Vector4(-1,.45,.6,1.05)},uLime:{value:new THREE.Color(0xe8e5da)},uPaintOn:{value:1},uBark:{value:new THREE.Color(1,1,1)}};
+const WIND=`uniform float uTime,uWind,uCrownBase,uCrownH,uWindPh;uniform vec2 uWindDir;
+vec3 windOff(vec3 p){float h=clamp((p.y-uCrownBase*.55)/max(uCrownH+uCrownBase*.45,.1),0.,1.4),b=h*h,t=uTime+uWindPh;
  float gust=.55+.45*sin(t*.37+p.x*.07+p.z*.05)*sin(t*.23+1.7),s=sin(t*1.25+dot(p.xz,vec2(.31,.23)))*.55+sin(t*2.6+p.y*1.1+p.x*.6)*.2;
  vec2 o=uWindDir*b*uWind*(.35+gust*(.65+s))*.09;return vec3(o.x,-dot(o,o)*1.5,o.y);}`;
 const PROJ=`vec4 mvPosition=vec4(transformed,1.);
@@ -272,18 +274,19 @@ mvPosition.xyz+=windOff(mvPosition.xyz);
 mvPosition=modelViewMatrix*mvPosition;gl_Position=projectionMatrix*mvPosition;`;
 function patch(mat,f){mat.customProgramCacheKey=()=>'aaa:'+Object.keys(f).filter(k=>f[k]).join(',');
  mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,WU);if(f.sss)Object.assign(sh.uniforms,SU);if(f.paint)Object.assign(sh.uniforms,PU);if(f.alpha)sh.uniforms.uAlphaMap={value:f.alpha};
-  let v=sh.vertexShader.replace('#include <common>','#include <common>\n'+WIND+(f.leaf?'\nattribute float aShade;varying float vShade;':'')+(f.alpha?'\nvarying vec2 vUvA;':'')+(f.paint?'\nvarying float vH;':''));
-  v=v.replace('#include <begin_vertex>','#include <begin_vertex>\n'+(f.leaf?'float hf=clamp((instanceMatrix[3].y-uCrownBase*.5)/1.5,0.,1.);transformed.z+=sin(uTime*(6.5+aShade*3.)+instanceMatrix[3].x*7.+instanceMatrix[3].z*5.)*uWind*.12*hf*position.y*position.y;vShade=aShade;':'')+(f.alpha?'vUvA=uv;':'')+(f.paint?'vH=position.y;':''));
+  let v=sh.vertexShader.replace('#include <common>','#include <common>\n'+WIND+(f.leaf?'\nattribute float aShade;varying float vShade;':'')+(f.sss?'\nattribute vec4 aTint;varying vec4 vTint;':'')+(f.alpha?'\nvarying vec2 vUvA;':'')+(f.paint?'\nvarying float vH;':''));
+  v=v.replace('#include <begin_vertex>','#include <begin_vertex>\n'+(f.leaf?'float hf=clamp((instanceMatrix[3].y-uCrownBase*.5)/1.5,0.,1.);transformed.z+=sin((uTime+uWindPh)*(6.5+aShade*3.)+instanceMatrix[3].x*7.+instanceMatrix[3].z*5.)*uWind*.12*hf*position.y*position.y;vShade=aShade;':'')+(f.sss?'vTint=aTint;':'')+(f.alpha?'vUvA=uv;':'')+(f.paint?'vH=position.y;':''));
   sh.vertexShader=v.replace('#include <project_vertex>',PROJ);
   let fr=sh.fragmentShader;
   if(f.alpha)fr=fr.replace('void main() {','uniform sampler2D uAlphaMap;varying vec2 vUvA;\nvoid main() {\nif(texture2D(uAlphaMap,vUvA).g<.5)discard;');
-  if(f.sss)fr=fr.replace('#include <common>','#include <common>\nuniform vec3 uSunView,uSSSCol;uniform float uSSS;varying float vShade;')
+  if(f.sss)fr=fr.replace('#include <common>','#include <common>\nuniform vec3 uSunView,uSSSCol;uniform float uSSS;varying float vShade;varying vec4 vTint;')
+   .replace('#include <map_fragment>','#include <map_fragment>\n{float l=dot(diffuseColor.rgb,vec3(.299,.587,.114));diffuseColor.rgb=mix(diffuseColor.rgb,vTint.rgb*l*10.,vTint.a);}')
    .replace('#include <opaque_fragment>',`{vec3 Lv=normalize(uSunView),Vw=normalize(vViewPosition);float back=pow(clamp(dot(Vw,-Lv),0.,1.),4.),thin=clamp(dot(-normal,Lv),0.,1.);
     outgoingLight+=diffuseColor.rgb*vec3(1.,1.12,.55)*uSSSCol*uSSS*(thin*.55+back*.9)*(.2+.8*vShade);}
 #include <opaque_fragment>`);
-  if(f.paint)fr=fr.replace('#include <common>','#include <common>\nuniform vec4 uPaint;uniform vec3 uLime;uniform float uPaintOn;varying float vH;')
+  if(f.paint)fr=fr.replace('#include <common>','#include <common>\nuniform vec4 uPaint;uniform vec3 uLime,uBark;uniform float uPaintOn;varying float vH;')
    .replace('#include <map_fragment>',`#include <map_fragment>
-    float lum=dot(diffuseColor.rgb,vec3(.3,.59,.11)),hh=vH+(lum-.12)*.3+sin(vMapUv.x*41.)*.012;
+    diffuseColor.rgb*=uBark;float lum=dot(diffuseColor.rgb,vec3(.3,.59,.11)),hh=vH+(lum-.12)*.3+sin(vMapUv.x*41.)*.012;
     float paintM=uPaintOn*max(step(uPaint.x,hh)*(1.-smoothstep(uPaint.y-.01,uPaint.y+.01,hh)),step(uPaint.z,hh)*(1.-smoothstep(uPaint.w-.01,uPaint.w+.01,hh)));
     diffuseColor.rgb=mix(diffuseColor.rgb,uLime*(.6+.55*smoothstep(.01,.2,lum)),paintM);`)
    .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(roughnessFactor,.94,paintM);');
@@ -314,7 +317,8 @@ async function makeTextures(){
  M.grassNM=patch(new THREE.MeshNormalMaterial({side:THREE.DoubleSide}),{alpha:M.grass.alphaMap});
  M.defaultNM=new THREE.MeshNormalMaterial();
  await makeLeafTextures(true)}
-async function makeLeafTextures(full){
+let leafGen=0;
+async function makeLeafTextures(full){leafGen++;
  if(full||!LEAF||LEAF.S!==Q.atlas){say('توليد أطلس الأوراق PBR ('+Q.atlas+'²)…');await tick();LEAF=leafCache(Q.atlas)}
  const K=LEAF;K.albedo=leafAlbedo(K,{hue:P.hue,sat:P.sat});K.dry=leafAlbedo(K,{hue:P.hue,sat:P.sat,dry:true});K.rough=leafRough(K,P.gloss);
  const mk=(map)=>{const m=new THREE.MeshStandardMaterial({map:tx(map,true),normalMap:tx(K.normal,false),roughnessMap:tx(K.rough,false),metalnessMap:tx(K.metal,false),aoMap:tx(K.ao,false),alphaMap:tx(K.maskC,false),metalness:1,alphaTest:.5,alphaToCoverage:Q.msaa>0,side:THREE.DoubleSide,envMapIntensity:.8});m.normalScale.set(1.2,1.2);return m};
@@ -383,7 +387,7 @@ function growSkeleton(r,cy,hx,hy,hz){
 
 function buildTree(root,r){
  const hx=P.cw/2,hy=P.ch/2,hz=P.cd/2,cy=P.trunk?P.trunkH+hy+P.crownLift:hy+.05;
- WU.uCrownBase.value=cy-hy;WU.uCrownH.value=P.ch;
+ WU.uCrownBase.value=cy-hy;WU.uCrownH.value=P.ch;const obr=treeUniforms(cy-hy,P.ch);
  const S=growSkeleton(r,cy,hx,hy,hz),{nodes,rad,norm}=S;
  const B={p:[],n:[],u:[],i:[]},Cp={p:[],n:[],u:[],i:[]},stack=S.roots.map(s=>[s,-1]),fp=r()*6.28;
  let paths=0;
@@ -399,6 +403,7 @@ function buildTree(root,r){
  if(P.leavesOn&&!P.cut){
   const target=Math.round(P.leaves*Q.leafMul),elig=[],pruned=P.shape!=='natural';let W=0;
   for(let i=0;i<nodes.length;i++){const nd=nodes[i];if(nd.trunk||nd.parent<0||norm[i]>.2)continue;const p=nd.p,f=crownF(p.x/hx,(p.y-cy)/hy,p.z/hz);if(f<(P.shape==='natural'?.3:.55))continue;const w=(nd.kids.length?.6:2.2)*Math.pow(cl(f,.3,1.1),pruned?2:1);elig.push([i,w,f]);W+=w}
+  const TN=P.tint,tB=TN?new THREE.Color().fromArray(TN.base):null,tA=TN&&TN.alt?new THREE.Color().fromArray(TN.alt):null;
   const per=[[],[],[],[]],up=V(0,1,0),X=V(0,0,0),Y=V(0,0,0),Z=V(0,0,0),m4=new THREE.Matrix4(),tmp=V(0,0,0),e1=V(0,0,0),e2=V(0,0,0),col=new THREE.Color();
   let carry=0;
   for(const[i,w,f]of elig){carry+=target*w/W;const cnt=Math.floor(carry);carry-=cnt;const nd=nodes[i];
@@ -411,14 +416,20 @@ function buildTree(root,r){
     let sc=P.leafSize*(1+(r()-.5)*2*P.sizeVar)*(nd.kids.length?1:.85);
     if(pruned){const tp=pos.clone().addScaledVector(Y,sc*.75),ft=crownF(tp.x/hx,(tp.y-cy)/hy,tp.z/hz);if(ft>1.07)sc*=.55;if(ft>1.16)continue}
     m4.makeBasis(X.clone().multiplyScalar(sc),Y.clone().multiplyScalar(sc),Z.clone().multiplyScalar(sc)).setPosition(pos);
-    const shade=Math.pow(cl(f),1.5),hN=cl((pos.y-(cy-hy))/(2*hy)),v=(r()-.5)*P.leafVar,yb=f>.88&&qy>-.2&&r()<.3;
+    const shade=Math.pow(cl(f),1.5),hN=cl((pos.y-(cy-hy))/(2*hy)),v=(r()-.5)*P.leafVar,isAlt=tA&&r()<TN.af*(f>.75?1.5:.45),yb=!isAlt&&f>.88&&qy>-.2&&r()<.3;
+    let tint=[0,0,0,0];if(TN){const tc=isAlt?tA:tB,j=1+(r()-.5)*2*TN.j;tint=[tc.r*j*(1+(r()-.5)*TN.j),tc.g*j,tc.b*j*(1+(r()-.5)*TN.j),isAlt?TN.aa:TN.amt]}
     col.setRGB(1,1,1).multiplyScalar((.62+.38*shade)*(.8+.2*hN)*(1+v*.3));if(yb)col.multiply(new THREE.Color(1.3,1.25,.75));else col.multiply(new THREE.Color(1+v*.15,1,1-v*.25));
-    per[(r()*4)|0].push(m4.clone(),col.clone(),shade)}}
-  per.forEach((L,vI)=>{const n=L.length/3;if(!n)return;const geo=leafGeo(vI,P.fold,P.droop*.5),sh=new Float32Array(n),im=new THREE.InstancedMesh(geo,M.leaf,n);
-   for(let j=0;j<n;j++){im.setMatrixAt(j,L[j*3]);im.setColorAt(j,L[j*3+1]);sh[j]=L[j*3+2]}geo.setAttribute('aShade',new THREE.InstancedBufferAttribute(sh,1));
-   im.castShadow=true;im.receiveShadow=true;im.customDepthMaterial=M.leafDepth;im.customDistanceMaterial=M.leafDist;im.userData.nm=M.leafNM;im.userData.leaf=true;im.computeBoundingSphere();root.add(im);leafCount+=n})}
+    per[(r()*4)|0].push(m4.clone(),col.clone(),shade,tint)}}
+  per.forEach((L,vI)=>{const n=L.length/4;if(!n)return;const geo=leafGeo(vI,P.fold,P.droop*.5,P.leafSeg),sh=new Float32Array(n),ti=new Float32Array(n*4),im=new THREE.InstancedMesh(geo,M.leaf,n);
+   for(let j=0;j<n;j++){im.setMatrixAt(j,L[j*4]);im.setColorAt(j,L[j*4+1]);sh[j]=L[j*4+2];ti.set(L[j*4+3],j*4)}geo.setAttribute('aShade',new THREE.InstancedBufferAttribute(sh,1));geo.setAttribute('aTint',new THREE.InstancedBufferAttribute(ti,4));
+   im.castShadow=true;im.receiveShadow=true;im.customDepthMaterial=M.leafDepth;im.customDistanceMaterial=M.leafDist;im.userData.nm=M.leafNM;im.userData.leaf=true;im.computeBoundingSphere();im.onBeforeRender=obr;root.add(im);leafCount+=n})}
+ bark.onBeforeRender=obr;
  return{nodes:nodes.length,leaves:leafCount,paths,cy,hy}}
-function leafGeo(v,fold,curl){const g=new THREE.PlaneGeometry(.8,1,4,6);g.translate(0,.5,0);const p=g.attributes.position,uv=g.attributes.uv,ci=v%2,cj=v>>1;
+const paintVec=()=>P.paint==='bands'?[-1,P.paintH*.42,P.paintH*.6,P.paintH]:P.paint==='solid'?[-1,P.paintH,-1,-1]:[-1,-1,-1,-1];
+/* المواد مشتركة بين كل الأشجار؛ قيم كل شجرة تُرفع قبل رسمها (بما فيه ممر الظل وGTAO) */
+function treeUniforms(cb,ch){const td={cb,ch,ph:P.windPh||0,paint:paintVec(),on:P.paint==='none'||!P.trunk?0:1,bark:new THREE.Color().fromArray(P.barkTint||[1,1,1])};
+ return(rd,sc,cam,geo,mat)=>{WU.uCrownBase.value=td.cb;WU.uCrownH.value=td.ch;WU.uWindPh.value=td.ph;PU.uPaint.value.set(...td.paint);PU.uPaintOn.value=td.on;PU.uBark.value.copy(td.bark);mat.uniformsNeedUpdate=true}}
+function leafGeo(v,fold,curl,lod){const g=new THREE.PlaneGeometry(.8,1,lod?2:4,lod?3:6);g.translate(0,.5,0);const p=g.attributes.position,uv=g.attributes.uv,ci=v%2,cj=v>>1;
  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,fold*Math.abs(x)*(.6+.4*Math.sin(Math.PI*y))-curl*y*y+.04*x*y);uv.setXY(i,(ci+.5+x)/2,(1.02-cj+.96*y)/2)}
  g.computeVertexNormals();return g}
 
@@ -426,8 +437,8 @@ function leafGeo(v,fold,curl){const g=new THREE.PlaneGeometry(.8,1,4,6);g.transl
 const PAVE=.1,SOIL=.055;
 function worldUV(g,s=.55,ox=0,oz=0){const p=g.attributes.position,n=g.attributes.normal,uv=g.attributes.uv;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);if(Math.abs(n.getY(i))>.5)uv.setXY(i,x*s+ox,z*s+oz);else uv.setXY(i,(x+z)*s+ox,y*s+oz)}}
 function tint(g,c){const n=g.attributes.position.count,a=new Float32Array(n*3);for(let i=0;i<n;i++){a[i*3]=c[0];a[i*3+1]=c[1];a[i*3+2]=c[2]}g.setAttribute('color',new THREE.BufferAttribute(a,3))}
-function buildSite(root,r,info){
- const ground=mesh(new THREE.PlaneGeometry(160,160).rotateX(-Math.PI/2),M.asphalt,false,true);if(RC)ground.position.y=-RC.siteY-.06;root.add(ground);
+function buildSite(root,r,info,opt={}){const ox=opt.ox||0,oz=opt.oz||0,y0=opt.y0??(RC?RC.siteY:0);
+ if(!opt.street){const ground=mesh(new THREE.PlaneGeometry(160,160).rotateX(-Math.PI/2),M.asphalt,false,true);if(RC)ground.position.y=-RC.siteY-.06;root.add(ground)}
  const pitIn=1.25,kw=.13,half=P.plaza/2,inner=pitIn/2+kw,hasPit=P.pit!=='none';let base=0;
  if(hasPit){base=SOIL;const tiles=[],gap=.014;
   const strip=(x0,x1,z0,z1,alongX)=>{const L0=alongX?x0:z0,L1=alongX?x1:z1,W0=alongX?z0:x0,W1=alongX?z1:x1,rows=Math.max(1,Math.round((W1-W0)/.55)),rw=(W1-W0)/rows;
@@ -455,7 +466,7 @@ function buildSite(root,r,info){
    im.count=k;im.receiveShadow=true;im.userData.nm=M.grassNM;root.add(im)}}
  if(P.fallen>0){const n=P.fallen,R0=Math.max(P.cw,P.cd)*.62+.6,per=[[],[],[],[]],m=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),c=new THREE.Color();
   for(let k=0;k<n;k++){const a=r()*6.28,rr=R0*Math.sqrt(r()),x=Math.cos(a)*rr,z=Math.sin(a)*rr*(P.cd/P.cw),ax=Math.abs(x),az=Math.abs(z);
-   if(RC&&z<RC.nBack)continue;let y=.004+k*1e-5;if(hasPit&&ax<inner&&az<inner)y=ax<pitIn/2&&az<pitIn/2?SOIL+.035*Math.exp(-((Math.hypot(x,z)/.45)**2))+.006:.175;else if(RC)y=RC.surf(x,z)-RC.siteY+.005+k*1e-5;else if(hasPit&&ax<half&&az<half)y=PAVE+.006;
+   if(RC&&(z+oz<RC.nBack||z+oz>RC.fBack))continue;let y=.004+k*1e-5;if(hasPit&&ax<inner&&az<inner)y=ax<pitIn/2&&az<pitIn/2?SOIL+.035*Math.exp(-((Math.hypot(x,z)/.45)**2))+.006:.175;else if(RC)y=RC.surf(x+ox,z+oz)-y0+.005+k*1e-5;else if(hasPit&&ax<half&&az<half)y=PAVE+.006;
    if(Math.hypot(x,z)<P.trunkR*1.3+.05)continue;
    e.set(-Math.PI/2+(r()-.5)*.35,0,r()*6.28,'XZY');q.setFromEuler(e);const s=P.leafSize*(.8+.4*r());m.compose(V(x,y,z),q,V(s,s,s));
    const t=r(),g=t<.25;c.setRGB(1,1,1).multiplyScalar(.7+.35*r());if(t<.3)c.multiply(new THREE.Color(.8,1,.55));else if(t>.85)c.multiply(new THREE.Color(.75,.55,.4));per[(r()*4)|0].push(m.clone(),c.clone(),g)}
@@ -700,10 +711,11 @@ function markGeo(rects){const Pp=[],U=[],I=[];
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(Pp,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return g}
 function buildRoad(root){const c=RC,L=c.L,g=new THREE.Group();root.add(g);
  const add=(geo,mat,cast=false)=>{const m=mesh(geo,mat,cast,true);g.add(m);return m};
- const inner=.755,hole=P.pit!=='none'?[[-inner,inner,-inner,inner]]:[],xs=[-inner,inner],ca=c.xc-c.cw/2,cb=c.xc+c.cw/2;
+ const inner=.755,ca=c.xc-c.cw/2,cb=c.xc+c.cw/2,pits=P.pit!=='none'?PITS:[],nP=pits.filter(q=>q.z<c.cz),fP=pits.filter(q=>q.z>c.fz),zF=c.fz+c.cz;
+ const hole=nP.map(q=>[q.x-inner,q.x+inner,q.z-inner,q.z+inner]),holeF=fP.map(q=>[q.x-inner,q.x+inner,q.z-inner,q.z+inner]),xs=[...nP,...fP].flatMap(q=>[q.x-inner,q.x+inner]);
  if(P.crosswalk)xs.push(ca,cb,ca-1.2,cb+1.2);
  add(gridGeo(-L/2,L/2,c.nBack,c.nB,.25,.2,c.swN,hole,xs,[-inner,inner]),RM.walk);
- add(gridGeo(-L/2,L/2,c.fB,c.fBack,.25,.2,c.swF,[],xs),RM.walk);
+ add(gridGeo(-L/2,L/2,c.fB,c.fBack,.25,.2,c.swF,holeF,xs,fP.length?[zF-inner,zF+inner]:[]),RM.walk);
  add(gridGeo(-L/2,L/2,c.cz+c.gut,c.fz-c.gut,.5,.2,c.roadY,[],[],[],4),RM.road);
  add(gridGeo(-L/2,L/2,c.cz,c.cz+c.gut,.5,.1,c.roadY),RM.gutter);
  add(gridGeo(-L/2,L/2,c.fz-c.gut,c.fz,.5,.1,c.roadY),RM.gutter);
@@ -741,17 +753,64 @@ function rtThumb(rt,mode){copyMat.uniforms.tS.value=rt.texture;copyMat.uniforms.
  const b=new Uint8Array(256*256*4);R.readRenderTargetPixels(thumbRT,0,0,256,256,b);R.setRenderTarget(null);return pixToCanvas(b,256,mode<2?1:2)}
 function rtFull(rt,mode){const N=rt.width,b=new Uint8Array(N*N*4);R.readRenderTargetPixels(rt,0,0,N,N,b);return pixToCanvas(b,N,mode)}
 
+
+/* =====================================================================
+   6ج. أشجار الشارع — أنواع متعددة + تنويع لكل شجرة (بذرة، حجم، لون، لحاء، طلاء، طور الرياح)
+   ===================================================================== */
+/* tint: c=لون الأوراق (sRGB)، a=قوة إعادة التلوين، j=تذبذب لكل ورقة، alt=لون الأزهار/الأوراق الثانوية، af=نسبتها */
+const SPECIES=[
+ {n:'فيكس مقصوص',w:3,p:{shape:'cushion',cw:3.8,cd:3.5,ch:1.8,round:3,trunkH:2,leafSize:.15,leaves:15000,attractors:1200},tint:{c:[.14,.33,.08],a:.55,j:.05},bark:[.95,.9,.85],paint:.6},
+ {n:'كرة مشذّبة',w:2,p:{shape:'sphere',cw:2.8,cd:2.8,ch:2.5,trunkH:1.9,leaves:12000,attractors:900,lean:.25},tint:{c:[.3,.52,.12],a:.6,j:.06},paint:.5},
+ {n:'زيتون',w:2,p:{shape:'natural',cw:3.3,cd:3.1,ch:2.8,trunkH:1.5,trunkR:.17,lean:.9,wobble:.8,attractors:800,influence:1.05,kill:.24,tropism:.2,leaves:10000,leafSize:.11,sizeVar:.2,fold:.3},tint:{c:[.44,.5,.38],a:.85,j:.04},bark:[.82,.82,.8],paint:.2},
+ {n:'بوانسيانا حمراء',w:1.5,p:{shape:'umbrella',cw:4.8,cd:4.6,ch:1.5,trunkH:2.3,lean:.4,leaves:13000,leafSize:.13},tint:{c:[.22,.42,.1],a:.6,j:.05,alt:[.95,.2,.05],af:.42,aa:1},paint:.1},
+ {n:'جاكرندا بنفسجية',w:1.5,p:{shape:'natural',cw:3.8,cd:3.6,ch:2.9,trunkH:2.2,trunkR:.14,lean:.6,attractors:900,influence:1,kill:.22,leaves:11000,leafSize:.13},tint:{c:[.3,.45,.15],a:.5,j:.05,alt:[.56,.42,.88],af:.55,aa:1},paint:.1},
+ {n:'كاسيا صفراء',w:1.2,p:{shape:'sphere',cw:3.2,cd:3.1,ch:2.8,trunkH:2,leaves:11000},tint:{c:[.25,.45,.1],a:.5,j:.05,alt:[1,.8,.08],af:.45,aa:1},paint:.2},
+ {n:'خريفية',w:1.2,p:{shape:'natural',cw:3.4,cd:3.2,ch:3.1,trunkH:2.1,trunkR:.15,attractors:850,influence:1.05,leaves:10000,leafSize:.17},tint:{c:[.88,.48,.08],a:.9,j:.12,alt:[.78,.14,.04],af:.3,aa:.95},bark:[.8,.75,.72],paint:0,fallen:2.5},
+ {n:'أرجوانية (برقوق)',w:1,p:{shape:'sphere',cw:3,cd:2.9,ch:2.6,trunkH:1.9,leaves:11000,leafSize:.14},tint:{c:[.38,.1,.14],a:.9,j:.08},bark:[.75,.7,.7],paint:.3},
+ {n:'شتلة حديثة',w:1,p:{shape:'sphere',cw:1.6,cd:1.6,ch:1.6,trunkH:1.7,trunkR:.07,attractors:500,step:.08,influence:.6,kill:.15,leaves:4500,leafSize:.14},tint:{c:[.38,.6,.14],a:.6,j:.06},stakes:1,paint:0,fallen:.3}];
+const ROWMIX={mixed:[0,1,2,3,4,5,6,7,8],green:[0,1,2,8],flowering:[3,4,5,0],autumn:[6,6,7,2,0],clipped:[0,0,1]};
+let PITS=[];
+function streetSlots(){if(!RC||!P.rowOn)return[];const r=rng(P.rowSeed*131+7),sp=P.spacing,maxX=RC.L/2-4,zF=RC.fz+RC.cz,near=[],far=[];
+ const bad=(x,side)=>(P.crosswalk&&Math.abs(x-RC.xc)<RC.cw/2+2.3)||(side===0&&(Math.abs(x)<2.5||(P.lamp&&Math.abs(x-3.2)<1.8)));
+ for(let k=1;k*sp<=maxX;k++)for(const sg of[-1,1]){const x=sg*k*sp+(r()-.5)*sp*.12;if(!bad(x,0))near.push({x,z:0,side:0})}
+ for(let k=0;(k+.5)*sp<=maxX;k++)for(const sg of[-1,1]){const x=sg*(k+.5)*sp+(r()-.5)*sp*.12;if(!bad(x,1))far.push({x,z:zF,side:1})}
+ return[...near.slice(0,P.rowN),...far.slice(0,P.rowF)]}
+function streetVariant(i){const r=rng(P.rowSeed*977+i*7919+13),pool=ROWMIX[P.rowMix]||ROWMIX.mixed;let W=0;pool.forEach(k=>W+=SPECIES[k].w);let t=r()*W,si=pool[0];for(const k of pool){t-=SPECIES[k].w;if(t<=0){si=k;break}}
+ const sp=SPECIES[si],sv=P.rowSizeVar,cv=P.rowColorVar,s=1+(r()-.5)*.4*sv,v={...DEF,...sp.p,seed:(r()*1e5)|0,species:si};
+ v.cw*=s*(1+(r()-.5)*.12*sv);v.cd*=s*(1+(r()-.5)*.12*sv);v.ch*=s*(1+(r()-.5)*.16*sv);v.trunkH*=1+(r()-.5)*.25*sv;v.trunkR*=.85+.3*s*r();v.lean*=.4+r()*1.2;
+ v.leaves=Math.round(v.leaves*P.rowDetail*s*s);v.attractors=Math.round(v.attractors*.8);
+ v.paint=r()<sp.paint*P.rowPaint?(r()<.55?'bands':'solid'):'none';v.paintH=.75+r()*.5;
+ Object.assign(v,{pit:P.pit,grass:P.grass,lamp:false,leavesOn:true,cut:false,trunk:true,crownLift:(r()-.5)*.2,leafSeg:1,stakes:!!sp.stakes,windPh:+(r()*20).toFixed(2),rotY:+(r()*6.28).toFixed(2)});
+ v.fallen=Math.round(P.fallen*.3*(sp.fallen??1));
+ const col=a=>{const c=new THREE.Color().setRGB(...a,THREE.SRGBColorSpace);c.offsetHSL((r()-.5)*.07*cv,(r()-.5)*.3*cv,(r()-.5)*.1*cv);return c.toArray().map(x=>+x.toFixed(4))};
+ const T=sp.tint;v.tint={base:col(T.c),amt:Math.min(1,T.a*(.75+.5*cv*r())),j:T.j*(.5+cv),alt:T.alt?col(T.alt):null,af:T.alt?T.af*(.6+.8*r()):0,aa:T.aa||0};
+ const bk=(sp.bark||[1,1,1]).map(x=>x*(1+(r()-.5)*.3*cv));v.barkTint=bk.map(x=>+x.toFixed(3));
+ return v}
+const STREET=new Map();
+function buildStreet(slots){const old=new Map(STREET);STREET.clear();const saved=P;let leaves=0,ext=0;
+ try{slots.forEach((sl,i)=>{const v=streetVariant(i),key=JSON.stringify(v)+QN+leafGen;let e=old.get(key);
+  if(e)old.delete(key);else{P=v;const rr=rng(v.seed);ph0=rr()*10;const g=new THREE.Group();const info=buildTree(g,rr);P=saved;e={g,info,v}}
+  STREET.set(key+'#'+i,e);
+  const y0=(sl.side?RC.swF(sl.x,sl.z):RC.swN(sl.x,sl.z))-PAVE,S=new THREE.Group();P=v;const base=buildSite(S,rng(v.seed*7+3),null,{street:1,ox:sl.x,oz:sl.z,y0});
+  if(v.stakes)buildStakes(S,base);P=saved;
+  S.position.set(sl.x,y0,sl.z);e.g.position.set(sl.x,y0+base,sl.z);e.g.rotation.y=v.stakes?0:v.rotY;ROOT.add(S,e.g);
+  leaves+=e.info.leaves;ext=Math.max(ext,Math.abs(sl.x)+v.cw/2,Math.abs(sl.z)+v.cd/2)})}
+ finally{P=saved}
+ old.forEach(e=>disposeTree(e.g));return{leaves,ext,count:slots.length}}
+
 /* =====================================================================
    7. البناء والإضاءة والمعالجة اللاحقة
    ===================================================================== */
 let ROOT=null,INFO={},buildMs=0;
+function detachStreet(){STREET.forEach(e=>e.g.parent&&e.g.parent.remove(e.g))}
 function disposeTree(o){o.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.isInstancedMesh)c.dispose()})}
 function build(){const t0=performance.now();
- if(ROOT){disposeTree(ROOT);scene.remove(ROOT)}ROOT=new THREE.Group();scene.add(ROOT);
+ if(ROOT){detachStreet();disposeTree(ROOT);scene.remove(ROOT)}ROOT=new THREE.Group();scene.add(ROOT);
  const r=rng(P.seed);ph0=r()*10;
- RC=P.road?roadCfg():null;const TR=new THREE.Group(),site=new THREE.Group(),tree=new THREE.Group();TR.add(site,tree);ROOT.add(TR);TR.position.y=RC?RC.siteY:0;if(RC)buildRoad(ROOT);
+ RC=P.road?roadCfg():null;const slots=streetSlots();PITS=[{x:0,z:0},...slots];const TR=new THREE.Group(),site=new THREE.Group(),tree=new THREE.Group();TR.add(site,tree);ROOT.add(TR);TR.position.y=RC?RC.siteY:0;if(RC)buildRoad(ROOT);
  const base=buildSite(site,rng(P.seed*7+3),INFO);tree.position.y=base;
- INFO=buildTree(tree,r);
+ INFO=buildTree(tree,r);tree.rotation.y=0;
+ const ST=RC?buildStreet(slots):(buildStreet([]),{leaves:0,ext:0,count:0});INFO.street=ST;
  if(P.lamp)buildLamp(ROOT,INFO);else lampLight=null;
  if(P.stakes&&P.trunk)buildStakes(TR,base);
  const hP=P.paint==='bands'?[-1,P.paintH*.42,P.paintH*.6,P.paintH]:P.paint==='solid'?[-1,P.paintH,-1,-1]:[-1,-1,-1,-1];
@@ -761,7 +820,7 @@ function build(){const t0=performance.now();
 function applyLight(){const L=LIGHTS[P.light];scene.background=new THREE.Color(L.bg);scene.fog=new THREE.FogExp2(L.bg,L.fog);
  hemi.color.set(L.hs);hemi.groundColor.set(L.hg);hemi.intensity=L.hi;scene.environmentIntensity=L.env;R.toneMappingExposure=L.exp*P.exposure;
  const az=P.sunAz*Math.PI/180,el=P.sunEl*Math.PI/180;sunDir.set(Math.cos(el)*Math.sin(az),Math.sin(el),Math.cos(el)*Math.cos(az));
- const tgt=V(0,(INFO.cy||2)*.5,0),Rb=Math.max(P.plaza,P.cw,P.cd)*.75+(RC?3:1.5);sun.target.position.copy(tgt);sun.position.copy(tgt).addScaledVector(sunDir,30);
+ const tgt=V(0,(INFO.cy||2)*.5,0),Rb=Math.max(Math.max(P.plaza,P.cw,P.cd)*.75+(RC?3:1.5),(INFO.street?.ext||0)+1);sun.target.position.copy(tgt);sun.position.copy(tgt).addScaledVector(sunDir,30);
  Object.assign(sun.shadow.camera,{left:-Rb,right:Rb,top:Rb,bottom:-Rb,near:5,far:60});sun.shadow.camera.updateProjectionMatrix();
  if(sun.shadow.mapSize.x!==Q.shadow){sun.shadow.mapSize.set(Q.shadow,Q.shadow);sun.shadow.map?.dispose();sun.shadow.map=null}
  sun.color.set(L.sun);sun.intensity=L.sunI;
@@ -798,7 +857,7 @@ function buildUI(){ui.innerHTML='';
  const top=document.createElement('div');top.innerHTML=`<div class="row" id="pre"></div>
  <div class="row"><button class="pri" id="smart">توليد ذكي</button><button id="rnd">بذرة عشوائية</button><label class="sel" style="margin:0;gap:6px">البذرة <input type="number" id="seed" min="0" step="1"></label></div>
  <div class="sel"><span>الجودة</span><select id="qual"><option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option><option value="ultra">فائقة (Ultra)</option></select></div>
- <div class="row"><button id="mapsBtn">خرائط PBR</button><button id="shot">لقطة PNG</button><button id="glb">تصدير GLB</button><button id="copy">نسخ JSON</button><button id="paste">لصق JSON</button></div><div id="msg"></div>`;
+ <div class="row"><button id="streetView">منظر الشارع</button><button id="mapsBtn">خرائط PBR</button><button id="shot">لقطة PNG</button><button id="glb">تصدير GLB</button><button id="copy">نسخ JSON</button><button id="paste">لصق JSON</button></div><div id="msg"></div>`;
  ui.appendChild(top);msgEl=top.querySelector('#msg');
  PRE.forEach(([n,o])=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>{P={...DEF,...o};syncUI();controls.target.set(0,(P.trunk?P.trunkH+P.ch*.35:P.ch*.5),0);rebuild(true);msg('تم تطبيق: '+n)};top.querySelector('#pre').appendChild(b)});
  for(const[title,items]of SC){const d=document.createElement('details');d.open=title==='التاج'||title==='الأوراق';d.innerHTML=`<summary>${title}</summary>`;
@@ -818,6 +877,7 @@ function buildUI(){ui.innerHTML='';
  $('paste').onclick=()=>{const s=prompt('الصق إعدادات JSON:');if(!s)return;try{P={...DEF,...JSON.parse(s)};syncUI();rebuild(true);msg('تم تحميل الإعدادات')}catch{msg('JSON غير صالح')}};
  $('shot').onclick=()=>{composer.render();R.domElement.toBlob(b=>dl(b,`street-tree-${P.seed}.png`));msg('تم حفظ اللقطة')};
  $('glb').onclick=exportGLB;
+ $('streetView').onclick=()=>{if(!RC)return;const z=RC.cz+RC.W*.3;cam.position.set(-15,1.7,z);controls.target.set(8,2.2,RC.cz*.2)};
  $('mapsBtn').onclick=()=>{document.getElementById('maps').classList.toggle('show');drawMaps()};
  syncUI()}
 function syncUI(){for(const k in ctrls)ctrls[k]();const s=ui.querySelector('#seed');if(s)s.value=P.seed;const q=ui.querySelector('#qual');if(q)q.value=QN}
@@ -854,7 +914,7 @@ function exportGLB(){msg('جاري التصدير…');const rgba=onBlack(LEAF.a
 const clock=new THREE.Clock();let fr=0,ft=0,fps=0;
 function loop(){requestAnimationFrame(loop);if(contextLost||!composer)return;const dt=Math.min(clock.getDelta(),.1);WU.uTime.value+=dt;controls.update();
  SU.uSunView.value.copy(sunDir).transformDirection(cam.matrixWorldInverse);R.info.reset();composer.render();
- fr++;ft+=dt;if(ft>.5){fps=fr/ft;fr=0;ft=0;stat.textContent=`FPS ${fps.toFixed(0)} · draw ${R.info.render.calls} · tris ${(INFO.tris/1e3).toFixed(0)}k\nleaves ${INFO.leaves} · nodes ${INFO.nodes} · build ${buildMs.toFixed(0)}ms · ${QN} · tex ${P.texRes/1024}K`}}
+ fr++;ft+=dt;if(ft>.5){fps=fr/ft;fr=0;ft=0;stat.textContent=`FPS ${fps.toFixed(0)} · draw ${R.info.render.calls} · tris ${(INFO.tris/1e3).toFixed(0)}k\nleaves ${INFO.leaves+(INFO.street?.leaves||0)} · trees ${1+(INFO.street?.count||0)} · nodes ${INFO.nodes} · build ${buildMs.toFixed(0)}ms · ${QN} · tex ${P.texRes/1024}K`}}
 (async()=>{try{await makeTextures();await bakeRoad();say('بناء الشجرة…');await tick();buildUI();setupComposer();build();document.getElementById('load').remove();window.__treeReady=true;window.__tree={cam,controls,get P(){return P},set,build};loop()}
  catch(e){window.__treeErr=1;console.error(e);say('خطأ: '+e.message)}})();
 </script>
