@@ -157,7 +157,7 @@ void UTPSAnimStudioWidget::UpdateLabels()
 	FString Info = FString::Printf(TEXT("Length %.2f s"), Clip->GetPlayLength());
 	if (!Player || !Player->HasSkeletalVisual())
 	{
-		Info += TEXT("\nPreview needs the skeletal character: create ABP_TPS (see Docs/SETUP.md).");
+		Info += TEXT("\nPreview needs the imported mannequin: run Scripts/import_tps_assets.py in the editor.");
 	}
 	InfoText->SetText(FText::FromString(Info));
 	SpeedText->SetText(FText::FromString(FString::Printf(TEXT("%.2fx"), Speed)));
@@ -171,10 +171,14 @@ void UTPSAnimStudioWidget::PlayCurrent()
 	{
 		return;
 	}
-	Player->PlayActionAnim(Clips[Index], Speed, bLoop ? 999 : 1, false, 0.1f, 0.2f);
-	bPlaying = true;
+	const float PlayTime = Player->PlayActionAnim(Clips[Index], Speed, bLoop ? 999 : 1, false, 0.1f, 0.2f);
+	bPlaying = PlayTime > 0.f;
 	bPaused = false;
 	UpdateLabels();
+	if (!bPlaying && InfoText)
+	{
+		InfoText->SetText(FText::FromString(TEXT("This clip was made for another skeleton (switch the character's Body to preview it).")));
+	}
 }
 
 void UTPSAnimStudioWidget::OnPrev()

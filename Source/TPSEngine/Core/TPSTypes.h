@@ -63,6 +63,14 @@ enum class ETPSWeaponPoseType : uint8
 	Launcher
 };
 
+/** Stock bodies created by Scripts/import_tps_assets.py. The animation pack targets the UE4 mannequin. */
+UENUM(BlueprintType)
+enum class ETPSBodyType : uint8
+{
+	UE4Mannequin UMETA(DisplayName = "UE4 Mannequin (all clips)"),
+	UE5Manny UMETA(DisplayName = "UE5 Manny (pistol pose only)")
+};
+
 UENUM(BlueprintType)
 enum class ETPSHitZone : uint8
 {
@@ -216,6 +224,9 @@ struct FTPSWeaponAnims
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation") TObjectPtr<UAnimSequenceBase> Cycle = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation") TObjectPtr<UAnimSequenceBase> Fire = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation") TObjectPtr<UAnimSequenceBase> Equip = nullptr;
+	/** Idle/aim pose override for the built-in procedural animation (sampled at IdlePoseTime). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation") TObjectPtr<UAnimSequenceBase> IdlePose = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation") float IdlePoseTime = 0.f;
 };
 
 /** Full-body action clips. Leave empty and the system still works (procedural timing, no clip). */

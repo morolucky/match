@@ -40,7 +40,7 @@ float UTPSTraversalComponent::GetTraversalAlpha() const
 	return FMath::Clamp((World->GetTimeSeconds() - StartTime) / Duration, 0.f, 1.f);
 }
 
-float UTPSTraversalComponent::PlayClip(UAnimSequenceBase* Clip, float FallbackTime, float Rate, int32 Loops)
+float UTPSTraversalComponent::PlayClip(UAnimSequenceBase* Clip, float FallbackTime, float Rate, int32 Loops, const FVector& Displacement, bool bHasDisplacement)
 {
 	ATPSCharacter* C = GetOwnerCharacter();
 	if (!C || !Clip)
@@ -49,15 +49,15 @@ float UTPSTraversalComponent::PlayClip(UAnimSequenceBase* Clip, float FallbackTi
 	}
 	if (Loops > 1)
 	{
-		C->PlayActionAnim(Clip, Rate, Loops, false, 0.15f, 0.2f);
+		C->PlayTraversalAnim(Clip, Rate, Loops, FVector::ZeroVector, false);
 		return FallbackTime;
 	}
 	if (!bUseClipLength && FallbackTime > 0.f)
 	{
-		C->PlayActionAnim(Clip, Clip->GetPlayLength() / FallbackTime, 1, false, 0.12f, 0.2f);
+		C->PlayTraversalAnim(Clip, Clip->GetPlayLength() / FallbackTime, 1, Displacement, bHasDisplacement);
 		return FallbackTime;
 	}
-	const float Length = C->PlayActionAnim(Clip, Rate, 1, false, 0.12f, 0.2f);
+	const float Length = C->PlayTraversalAnim(Clip, Rate, 1, Displacement, bHasDisplacement);
 	return Length > 0.f ? Length : FallbackTime;
 }
 
@@ -221,7 +221,7 @@ bool UTPSTraversalComponent::TryMantle(FVector Dir)
 	EndLoc = Dest;
 	TargetRot = FRotator(0.f, Into.Rotation().Yaw, 0.f);
 	Begin(MantleType, 0.f);
-	Duration = FMath::Max(0.3f, PlayClip(Clip, Fallback));
+	Duration = FMath::Max(0.3f, PlayClip(Clip, Fallback, 1.f, 1, EndLoc - StartLoc, true));
 	return true;
 }
 
@@ -354,7 +354,7 @@ bool UTPSTraversalComponent::TryDodgeRoll(FVector Dir)
 	Begin(ETPSTraversalType::DodgeRoll, RollTime);
 	if (UAnimSequenceBase* Clip = C->AnimSet.DodgeRoll)
 	{
-		C->PlayActionAnim(Clip, Clip->GetPlayLength() / RollTime, 1, false, 0.08f, 0.15f);
+		C->PlayTraversalAnim(Clip, Clip->GetPlayLength() / RollTime, 1, Dir * Dist, true);
 	}
 	return true;
 }
@@ -466,12 +466,14 @@ void UTPSTraversalComponent::SetLadderPhase(ETPSLadderPhase Phase)
 	StartLoc = C ? C->GetActorLocation() : FVector::ZeroVector;
 	LadderLoopDir = 0;
 
+	const float TopFeet = Ladder ? FMath::Max(LadderStartRise, Ladder->Height - LadderEndRise) : 0.f;
+	const FVector TopExit = Ladder ? Ladder->GetTopExit() + FVector(0.f, 0.f, GetHalfHeight() + 2.f) : StartLoc;
 	switch (Phase)
 	{
-	case ETPSLadderPhase::StartUp: Duration = PlayClip(C ? C->AnimSet.LadderUpStart.Get() : nullptr, LadderStartTime); break;
-	case ETPSLadderPhase::EndUp: Duration = PlayClip(C ? C->AnimSet.LadderUpEnd.Get() : nullptr, LadderEndTime); break;
-	case ETPSLadderPhase::StartDown: Duration = PlayClip(C ? C->AnimSet.LadderDownStart.Get() : nullptr, LadderEndTime); break;
-	case ETPSLadderPhase::EndDown: Duration = PlayClip(C ? C->AnimSet.LadderDownEnd.Get() : nullptr, 0.45f); break;
+	case ETPSLadderPhase::StartUp: Duration = PlayClip(C ? C->AnimSet.LadderUpStart.Get() : nullptr, LadderStartTime, 1.f, 1, LadderPoint(LadderStartRise, 0.f) - StartLoc, true); break;
+	case ETPSLadderPhase::EndUp: Duration = PlayClip(C ? C->AnimSet.LadderUpEnd.Get() : nullptr, LadderEndTime, 1.f, 1, TopExit - StartLoc, true); break;
+	case ETPSLadderPhase::StartDown: Duration = PlayClip(C ? C->AnimSet.LadderDownStart.Get() : nullptr, LadderEndTime, 1.f, 1, LadderPoint(TopFeet, 0.f) - StartLoc, true); break;
+	case ETPSLadderPhase::EndDown: Duration = PlayClip(C ? C->AnimSet.LadderDownEnd.Get() : nullptr, 0.45f, 1.f, 1, LadderPoint(0.f, -20.f) - StartLoc, true); break;
 	default: Duration = 0.f; break;
 	}
 	Duration = FMath::Max(Duration, 0.05f);

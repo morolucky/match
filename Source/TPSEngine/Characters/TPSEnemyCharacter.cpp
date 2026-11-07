@@ -46,6 +46,11 @@ float ATPSEnemyCharacter::ModifyIncomingDamage(float BaseDamage, ETPSHitZone Zon
 	}
 }
 
+FRotator ATPSEnemyCharacter::GetAnimAimRotation() const
+{
+	return bHasAimTarget ? (AimTarget - GetPawnViewLocation()).Rotation() : GetActorRotation();
+}
+
 float ATPSEnemyCharacter::GetDesiredFacingYaw() const
 {
 	if (bHasAimTarget)

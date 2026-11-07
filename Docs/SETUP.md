@@ -1,6 +1,6 @@
 # Setup guide
 
-## 1. Build and play (no content needed)
+## 1. Build and play
 
 1. Generate project files (right-click `TPSEngine.uproject`) and build **Development Editor**.
 2. Open the project. The editor starts in the empty `/Engine/Maps/Entry` map.
@@ -18,59 +18,60 @@ Without a navmesh, the AI uses its built-in steering, so it still works. For pro
 drop a **NavMeshBoundsVolume** that covers the arena (about X −1400…5200, Y −2700…2700, Z −100…600) into your saved map.
 `Config/DefaultEngine.ini` already sets `RuntimeGeneration=Dynamic`, so cover that toggles per mode is respected.
 
-## 2. Import the original assets (one click)
+## 2. Import the original assets (one click), then press Play
 
-`SourceAssets/` contains everything from the web build: `UE5_Manny_Simple.FBX`, the UE4 mannequin, 21 animation clips,
-3 GLB weapon packs, and the 7 sounds (converted to WAV, because Unreal does not import MP3).
+`SourceAssets/` contains everything from the web build: the UE4 mannequin and UE5 Manny, all 21 animation clips,
+the 7 sounds (converted to WAV, because Unreal does not import MP3), the 3 first-person GLB packs, and the
+third-person weapon meshes baked from those packs.
 
 1. Enable **Python Editor Script Plugin** if it is not enabled (the `.uproject` already lists it).
 2. **Tools → Execute Python Script…** → `Scripts/import_tps_assets.py`.
+3. Press **Play**. No AnimBP and no manual setup are needed. The player and the AI switch to the mannequin, and every clip below plays automatically.
 
-The script imports assets to the exact paths the C++ code loads automatically:
-
-| Asset | Path | Used by |
+| Asset | Path | Used for |
 |---|---|---|
-| Manny mesh + skeleton + physics asset | `/Game/TPS/Characters/UE5_Manny_Simple` | All characters (once `ABP_TPS` exists) |
-| Climb clips `A_Climb_Low_01`, `A_Climb_Up_02`, `A_Climb_Up_03` | `/Game/TPS/Animations` | Mantle low / mid / high |
-| `A_JumpRoll` | `/Game/TPS/Animations` | Dodge roll and dive roll |
-| `A_Ladder_Up_*`, `A_Ladder_Dawn_*` | `/Game/TPS/Animations` | Ladder start / loop / end, up and down |
-| `A_TP_CH_*` reloads | `/Game/TPS/Animations` | Pistol, M4/AK (SMG clips), shotgun, Kar98k insert + bolt, RPG |
-| `A_AR_Aim_Fwd`, `A_AR_AimWalkPose_Fwd`, `MF_Pistol_Idle_ADS`, `A_TP_CH_Sniper_02_Crouch_Aim_Pose` | `/Game/TPS/Animations` | Aim poses for your AnimBP |
-| `pistol_shot`, `rifle_shot`, `rifle_tail`, `kar_shot`, `mag_in`, `slide_rack`, `bolt` | `/Game/TPS/Audio` | Weapon audio (same routing as the web build) |
-| GLB weapon packs | `/Game/TPS/Weapons/Source/...` | Reference meshes for your weapon Blueprints |
+| UE4 mannequin | `/Game/TPS/Characters/SK_Mannequin` | Default body for the player and AI (20 of the 21 clips are authored for this skeleton) |
+| UE5 Manny | `/Game/TPS/Characters/SK_Manny` | Alternate body (`Body = UE5 Manny` on a character); plays `MF_Pistol_Idle_ADS` |
+| `A_AR_Aim_Fwd` | `/Game/TPS/Animations` | Rifle idle/aim stance (M4, AK-74M) |
+| `A_AR_AimWalkPose_Fwd` | | Rifle upper body while moving |
+| `MF_Pistol_Idle_ADS` | | Pistol stance on the UE5 body |
+| `A_TP_CH_Handgun_Reload_Empty` | | Pistol reloads, plus pistol stance on the UE4 body (frame 0) |
+| `A_TP_CH_SMG_02_Reload`, `A_TP_CH_SMG_02_Reload_Empty` | | M4 / AK-74M tactical and empty reloads |
+| `A_TP_CH_Shotgun_01_Reload_Bolt` | | Shotgun reload and pump, Benelli shell insert, shotgun stance (frame 0) |
+| `A_TP_CH_Sniper_01_Reload_Insert`, `A_TP_CH_Sniper_01_Reload_Bolt` | | Kar98k reload, Kar98k bolt cycle after each shot, sniper stance (frame 0) |
+| `A_TP_CH_Sniper_02_Crouch_Aim_Pose` | | Kar98k crouched stance |
+| `A_TP_CH_RL_01_Reload` | | RPG-7 reload and RPG-7 stance (frame 0) |
+| `A_Climb_Low_01`, `A_Climb_Up_02`, `A_Climb_Up_03` | | Mantle low (≤135 cm), mid (≤220 cm), and high (≤300 cm) |
+| `A_JumpRoll` | | Dodge roll and dive roll |
+| `A_Ladder_Up_Start/Loop/End`, `A_Ladder_Dawn_Start/Loop/End` | | Ladder climbing up and down (loop speed follows climb speed) |
+| `SM_M4`, `SM_AK74M`, `SM_BenelliM4` | `/Game/TPS/Weapons` | Weapon meshes for M4, AK-74M, and Benelli (the other weapons keep their procedural models) |
+| 7 sounds | `/Game/TPS/Audio` | Shots, tails, magazine, bolt, and slide (same routing as the web build) |
 
-Climb and ladder clips are set to **Force Root Lock** because the C++ moves the capsule along the ledge or ladder path.
-If a clip reports a skeleton mismatch, retarget it to `UE5_Manny_Simple` (**right-click → Retarget Animations**).
+### How the animation works (`UTPSProceduralAnimInstance`)
 
-## 3. Create the AnimBP (`ABP_TPS`)
+- **Stance:** each weapon type uses its own pose clip. Reload clips start from the weapon's ready pose, so their first frame is used as the stance.
+- **Locomotion:** the pack has no walk/run cycles (the web build generated them in code), so the legs are animated procedurally.
+  This covers walk/run/strafe/backpedal stride and cadence, knee bend, foot roll, pelvis bob and twist, a run lean, crouch (feet stay planted while the hips drop 34 cm), in-air tuck, and turn-in-place steps.
+- **Upper body:** spine aim pitch and yaw, a closed-loop correction that lines the barrel up with the crosshair, lean (Q/E), recoil kick, a hit flinch, and weapon lowering on switch.
+- **Hands:** long guns sit between the two wrists of the current pose; pistols point at the aim. During reloads, bolt cycles, and traversal, the weapon stays in the right hand.
+- **Action clips:** reloads and bolt/pump cycles play on the upper body, timed to the gameplay reload duration.
+  Mantle, roll, and ladder clips play full-body. Their root travel is re-targeted to the capsule's actual path, so a climb clip fits any ledge from 55 to 300 cm.
+- **Death:** the body becomes a ragdoll (the import creates a physics asset). Bullets hit physics-asset bones, so head and limb zones are exact.
 
-The script creates `/Game/TPS/Animations/ABP_TPS_Starter` (parent class `TPSAnimInstance`, Manny skeleton).
-Characters keep the placeholder body until an AnimBP named **`ABP_TPS`** exists, so they never T-pose.
+To use your own AnimBP instead, create `/Game/TPS/Animations/ABP_TPS` (parent class `TPSAnimInstance`). Characters pick it up automatically.
+It receives the same variables (`Speed`, `Direction`, `AimPitch`, `AimYaw`, `LeanAngle`, `bIsCrouching`, `WeaponPose`, `LadderPhase`, and more). Action clips then play as montages on the `DefaultSlot` and `UpperBody` slots.
 
-The web build generated walk/run procedurally, so the source pack has **no locomotion cycles**. Add them from Epic's free content:
-**Content Browser → Add → Add Feature or Content Pack → Third Person**. It provides `MM_Idle`, `MF_Unarmed_Walk_Fwd`,
-`MM_Run_Fwd`, and related clips on the same UE5 mannequin skeleton. If the skeleton asset differs, open
-`UE5_Manny_Simple_Skeleton` → **Compatible Skeletons**, add `SK_Mannequin`, or retarget.
+### Rebuilding the weapon meshes
 
-AnimGraph recipe. Every variable below is already provided by `TPSAnimInstance`, so use **Get** nodes and do not add Event Graph logic:
+`SourceAssets/Weapons/SM_*.fbx` are generated from the GLB packs. To regenerate them (for example, after changing a pack), run:
 
-1. **Anim Slot Manager** → add the slot `UpperBody` to `DefaultGroup` (`DefaultSlot` already exists).
-2. **Locomotion:** Blend Space 1D (idle → walk 140 → run 400) driven by `Speed`. For strafing, use a 2D blend space with `Direction`.
-   Add a Crouch state on `bIsCrouching` and an In Air state on `bIsInAir` if you have clips for them.
-3. **Aim:** *Blend Poses by bool* on `bIsAiming` → blend in `A_AR_Aim_Fwd` (rifle) or `MF_Pistol_Idle_ADS`, selected by `WeaponPose`.
-   Use *Layered blend per bone* from `spine_01` so the legs keep walking. Optionally add an Aim Offset with `AimPitch` and `AimYaw`.
-4. **Lean:** *Transform (Modify) Bone* `spine_03`, Rotation = (Roll `LeanAngle`), Add to Existing, Component Space.
-5. **Montage slots:** `Layered blend per bone` (base: locomotion; blend pose 0: **Slot `UpperBody`**; bone `spine_01`)
-   → **Slot `DefaultSlot`** → Output Pose.
-6. Compile, save, and rename the asset to **`ABP_TPS`**. Press Play: the player and AI now use Manny, and every clip in the table above plays automatically.
+```
+blender -b --python Scripts/bake_fps_weapons.py
+```
 
-To use a different character, create a Blueprint child of `TPSPlayerCharacter` / `TPSEnemyCharacter`, set *Mesh* and *Anim Class*,
-and untick `Auto Load Default Content` if you want full manual control.
-
-### Weapon placement on the skeleton
-
-Weapons attach to the `hand_r` socket (`WeaponSocket` on the character) using each weapon's `GripOffset`.
-The quickest way is to add a socket named `hand_r_weapon` to the skeleton, preview a weapon mesh on it, and set `WeaponSocket` to that name.
+This drops the first-person arms, applies the skin at the idle frame, scales each weapon to its real length,
+and sets the origin at the right wrist, with +X toward the muzzle and +Z up. It also writes `weapons.json` with the muzzle and support-hand points that the C++ presets use.
+The first-person arm animations in the packs (`AK_Reload`, `M4_Fire`, …) target FPS arms, not a third-person body, so they are not used.
 
 ## 4. Customising
 

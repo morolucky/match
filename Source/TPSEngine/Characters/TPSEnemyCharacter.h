@@ -30,6 +30,7 @@ public:
 	virtual float ModifyIncomingDamage(float BaseDamage, ETPSHitZone Zone, const ATPSCharacter* Shooter) const override;
 	virtual float GetDesiredFacingYaw() const override;
 	virtual bool WantsToFaceAim() const override { return bHasAimTarget; }
+	virtual FRotator GetAnimAimRotation() const override;
 
 private:
 	FVector AimTarget = FVector::ZeroVector;

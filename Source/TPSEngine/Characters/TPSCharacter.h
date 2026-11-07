@@ -13,6 +13,7 @@ class USceneComponent;
 class ATPSWeapon;
 class UAnimSequenceBase;
 class UAnimMontage;
+class UTPSProceduralAnimInstance;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FTPSOnCharacterDied, ATPSCharacter*, Character);
 
@@ -66,6 +67,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Animation") FTPSCharacterAnimSet AnimSet;
 	/** Fill empty mesh/anim/sound slots from /Game/TPS/... (created by Scripts/import_tps_assets.py). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Animation") bool bAutoLoadDefaultContent = true;
+	/** Body used by auto-loading (UE4 mannequin plays every clip in the pack). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Animation") ETPSBodyType Body = ETPSBodyType::UE4Mannequin;
 	/** Seconds before a dead body is removed (0 = keep). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Health") float CorpseLifeSpan = 0.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Visual") FLinearColor PlaceholderColor = FLinearColor(0.6f, 0.62f, 0.66f);
@@ -80,7 +83,11 @@ public:
 	/** Plays a sequence/montage on a slot as a dynamic montage. Returns its duration (0 if not played). */
 	UFUNCTION(BlueprintCallable, Category = "TPS|Animation")
 	float PlayActionAnim(UAnimSequenceBase* Anim, float PlayRate = 1.f, int32 Loops = 1, bool bUpperBodyOnly = false, float BlendIn = 0.15f, float BlendOut = 0.2f);
+	/** Full-body clip whose root travel is matched to the capsule's planned displacement (mantle, roll, ladder). */
+	float PlayTraversalAnim(UAnimSequenceBase* Anim, float PlayRate, int32 Loops, const FVector& WorldDisplacement, bool bHasDisplacement);
 	UFUNCTION(BlueprintCallable, Category = "TPS|Animation") void StopActionAnim(float BlendOut = 0.2f);
+	UFUNCTION(BlueprintPure, Category = "TPS|Animation") bool IsUpperBodyActionActive() const;
+	UTPSProceduralAnimInstance* GetProceduralAnim() const;
 	UFUNCTION(BlueprintCallable, Category = "TPS|Animation") void SetActionAnimRate(float PlayRate);
 	UFUNCTION(BlueprintCallable, Category = "TPS|Animation") void SetActionAnimPaused(bool bPaused);
 
@@ -106,6 +113,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "TPS") ATPSWeapon* GetCurrentWeapon() const;
 	UFUNCTION(BlueprintPure, Category = "TPS") bool HasSkeletalVisual() const { return bHasSkeletalVisual; }
 	UFUNCTION(BlueprintPure, Category = "TPS") virtual bool IsAimingWeapon() const;
+	UFUNCTION(BlueprintPure, Category = "TPS") float GetTimeSinceHit() const;
+	/** Where the upper body should point (player: camera; AI: its aim target). */
+	virtual FRotator GetAnimAimRotation() const { return GetBaseAimRotation(); }
 
 	/** Facing yaw the character tries to hold (control yaw for the player, aim focus for AI). */
 	virtual float GetDesiredFacingYaw() const;
@@ -129,4 +139,5 @@ protected:
 	bool bTurningInPlace = false;
 	bool bHasSkeletalVisual = false;
 	float DeathTipAlpha = -1.f;
+	float LastHitTime = -1000.f;
 };

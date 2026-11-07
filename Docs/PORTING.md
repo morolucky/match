@@ -10,7 +10,10 @@ three.js FOV is vertical: 50° vertical ≈ 80° horizontal (16:9), and the 7° 
 | `game.js` (camera rig, aim trainer, round flow, hit scoring) | `ATPSPlayerCharacter` camera, `ATPSTrainingTarget`, `ATPSArenaBuilder`, `ATPSGameMode` |
 | `locomotion.js` (procedural gait, run/aim speeds, lean, ladder) | `ATPSCharacter` movement/lean/turn-in-place, `UTPSTraversalComponent` ladder, `UTPSAnimInstance` |
 | `anim/traverse.js` (mantle, dive, dodge roll) | `UTPSTraversalComponent` |
-| `anim/xfade.js`, `secondary.js`, `curves.js`, `fingers.js`, `ik.js`, `rig.js`, `skeleton.js`, `fpspack.js` | Replaced by UE skeletal animation: AnimBP + montage slots, retargeting, Control Rig/IK nodes |
+| `locomotion.js` procedural gait, `anim/xfade.js`, `secondary.js` | `UTPSProceduralAnimInstance` (procedural gait, crossfades, action layers, spine aim/lean/recoil) |
+| `skeleton.js` clip list, `ik.js` hand/gun placement | `UTPSProceduralAnimInstance` stance poses + `UTPSCombatComponent::PlaceWeaponInHands` |
+| `fpspack.js` (strip arms from FPS packs, learn weapon geometry) | `Scripts/bake_fps_weapons.py` → `SM_M4`, `SM_AK74M`, `SM_BenelliM4` |
+| `rig.js`, `anim/fingers.js`, `anim/curves.js` | Not needed (UE skeletons are imported directly; finger poses come from the clips) |
 | `weapons.js`, `reload-timeline.js` | `ATPSWeapon` (presets, fire modes, reload timeline, kick), `UTPSCombatComponent` |
 | `fx.js` | `UTPSFX` / `ATPSTransientFX` (+ Niagara overrides) |
 | `audio.js` | `FTPSWeaponAudio` + `UTPSStatics::PlaySoundAt` (master volume) |

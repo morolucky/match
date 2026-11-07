@@ -37,7 +37,7 @@ void UTPSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	bIsRunning = Character->IsRunning();
 	bIsTurningInPlace = Character->IsTurningInPlace();
 
-	const FRotator Aim = Character->GetBaseAimRotation();
+	const FRotator Aim = Character->GetAnimAimRotation();
 	AimPitch = FRotator::NormalizeAxis(Aim.Pitch);
 	AimYaw = FRotator::NormalizeAxis(Aim.Yaw - ActorRot.Yaw);
 	TurnYawOffset = AimYaw;

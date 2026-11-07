@@ -21,7 +21,8 @@ Everything is written in C++ with Blueprint extension points. No `.uasset` files
 | **Modes** | Aim Trainer (60 s, 5 swinging steel plates + 5 poppers, distance scoring) and VS AI (waves, combos ×0.5 up to ×5, flawless bonus) | `ATPSGameMode`, `ATPSTrainingTarget` |
 | **Juice** | Kill hit-stop (0.08 time scale, 0.05/0.075 s), trauma, FOV kick, weapon kick, tracers, muzzle flash, impacts, bullet holes, shells, explosions (optional Niagara overrides) | `UTPSFX` |
 | **UI** | HUD (time, score, accuracy, wave, kills left, ammo, reload bar, weapon slots, health, dynamic crosshair, scope, hit markers, damage arrows and vignette, wave banner, combo, medals, kill feed, score popups, toasts, prompts), main menu, pause, game-over stats, settings (saved), controls, Animation Studio, touch buttons on mobile | `ATPSHUD`, `UTPSHUDWidget`, `UTPSMenuWidget`, `UTPSAnimStudioWidget` |
-| **Animation** | `UTPSAnimInstance` exposes speed, direction, aim pitch/yaw, lean, crouch, run, reload, recoil, ladder phase/rate, and traversal type. Clips play as dynamic montages on `DefaultSlot` (full body) and `UpperBody` | `UTPSAnimInstance` |
+| **Animation** | All 21 clips are wired with no AnimBP. Weapon stances come from the clips, and the procedural walk/run/crouch gait is ported from the web build. Spine aim with barrel alignment, lean, recoil, and flinch are layered on top. Reloads and bolt/pump cycles play on the upper body; mantle, roll, and ladder clips are fitted to the capsule path. Weapons sit in both hands, and death is a ragdoll. An optional custom AnimBP (`ABP_TPS`) receives the same variables | `UTPSProceduralAnimInstance`, `UTPSAnimInstance` |
+| **Weapon models** | M4, AK-74M, and Benelli meshes baked from the GLB packs (arms removed, real scale, grip and muzzle points) | `Scripts/bake_fps_weapons.py` |
 
 ## Quick start
 
@@ -29,8 +30,8 @@ Everything is written in C++ with Blueprint extension points. No `.uasset` files
 2. Right-click `TPSEngine.uproject` → **Generate Visual Studio project files**, then open `TPSEngine.sln` and build **Development Editor | Win64**
    (or double-click the `.uproject` and let the editor build the module).
 3. Press **Play**. The startup map is the engine's empty `Entry` map, and the arena is built automatically.
-4. Optional: import the real mannequin, animations, and sounds by running `Scripts/import_tps_assets.py` in the editor,
-   then follow [Docs/SETUP.md](Docs/SETUP.md) to create the AnimBP (about 10 minutes).
+4. Run `Scripts/import_tps_assets.py` in the editor (**Tools → Execute Python Script**) and press **Play** again.
+   The mannequin, all animations, weapon models, and sounds are now used. No AnimBP is needed. See [Docs/SETUP.md](Docs/SETUP.md).
 
 ## Controls
 
@@ -62,11 +63,12 @@ Source/TPSEngine/
   Weapons/     TPSWeapon (presets, hitscan, reload timeline, recoil)
   AI/          AIController (tactical state machine), AIDirector (waves)
   World/       ArenaBuilder, Ladder, TrainingTarget, Pickup, CoverPoint / EnemySpawnPoint
-  Animation/   TPSAnimInstance
+  Animation/   TPSAnimInstance (variables for AnimBPs), TPSProceduralAnimInstance (built-in clip + procedural animation)
   FX/          TPSFX (procedural tracers/impacts/explosions, Niagara hooks)
   UI/          TPSHUD + HUD / Menu / AnimStudio widgets (built in C++), UI style
-SourceAssets/               Original FBX/GLB from the web build, plus sounds converted to WAV for UE import
+SourceAssets/               Original FBX/GLB from the web build, sounds converted to WAV, baked weapon FBX (+ weapons.json)
 Scripts/import_tps_assets.py  One-click editor import to /Game/TPS/...
+Scripts/bake_fps_weapons.py   Blender script that bakes the FPS GLB packs into third-person weapon meshes
 Docs/SETUP.md               Editor setup, AnimBP recipe, customising, packaging
 Docs/PORTING.md             Web module → UE class map and all ported numbers
 ```
@@ -75,8 +77,8 @@ Docs/PORTING.md             Web module → UE class map and all ported numbers
 
 - **Weapons:** create a Blueprint child of `TPSWeapon`, set `Preset = Custom`, then edit `Stats`, `Audio`, `Anims`, the mesh, and the `Muzzle` location.
   Add it to `Combat → Weapon Classes` on your character Blueprint.
-- **Characters:** create Blueprint children of `TPSPlayerCharacter` / `TPSEnemyCharacter`. Set the skeletal mesh, the AnimBP class (parented to `TPSAnimInstance`),
-  `Anim Set` clips, speeds, and camera values. Set the game mode `Default Pawn Class` and the director's `Enemy Class`.
+- **Characters:** create Blueprint children of `TPSPlayerCharacter` / `TPSEnemyCharacter`. Choose the `Body` (UE4 mannequin or UE5 Manny), or set your own mesh and AnimBP.
+  You can also override `Anim Set` clips, stance poses (on `TPSProceduralAnimInstance`), speeds, and camera values. Set the game mode `Default Pawn Class` and the director's `Enemy Class`.
 - **Levels:** place `TPSArenaBuilder` and untick parts you do not want, or build your own level with
   `TPSCoverPoint`, `TPSEnemySpawnPoint`, `TPSLadder`, `TPSTrainingTarget`, and a `NavMeshBoundsVolume`.
 - **UI:** create Blueprint children of the widget classes and assign them on a `TPSHUD` Blueprint.
@@ -86,5 +88,5 @@ Docs/PORTING.md             Web module → UE class map and all ported numbers
 
 The C++ was written against the UE 5.4 API and reviewed, but **it has not been compiled in this repository's CI**
 because no Unreal toolchain is available there. Build it once locally. If anything fails, the error will point to a single line.
-The source pack has no walk/run cycles (the web build generated locomotion procedurally). See [Docs/SETUP.md](Docs/SETUP.md) for the
-recommended locomotion source.
+The source pack has no walk/run cycles (the web build generated locomotion procedurally), so the gait is procedural here too.
+Its look has not been checked in the editor yet. Tune `WalkStride`, `RunStride`, and the other gait values on `TPSProceduralAnimInstance` if needed.

@@ -25,3 +25,6 @@ Thumbs.db
 
 # Hoplite attachments
 .hoplite/
+
+# Python
+__pycache__/

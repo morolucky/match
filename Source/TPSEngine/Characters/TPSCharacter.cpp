@@ -6,6 +6,7 @@
 #include "Components/TPSTraversalComponent.h"
 #include "Weapons/TPSWeapon.h"
 #include "Animation/TPSAnimInstance.h"
+#include "Animation/TPSProceduralAnimInstance.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequenceBase.h"
@@ -118,12 +119,19 @@ void ATPSCharacter::AutoLoadContent()
 	USkeletalMeshComponent* SkMesh = GetMesh();
 	if (SkMesh && !SkMesh->GetSkeletalMeshAsset())
 	{
-		USkeletalMesh* Manny = UTPSStatics::TryLoad<USkeletalMesh>(TEXT("/Game/TPS/Characters/UE5_Manny_Simple.UE5_Manny_Simple"));
-		UClass* AnimClass = UTPSStatics::TryLoad<UClass>(TEXT("/Game/TPS/Animations/ABP_TPS.ABP_TPS_C"));
-		// Only switch away from the placeholder when the AnimBP exists too, otherwise the mesh would T-pose.
-		if (Manny && AnimClass && AnimClass->IsChildOf(UAnimInstance::StaticClass()))
+		USkeletalMesh* BodyMesh = Body == ETPSBodyType::UE5Manny
+			? UTPSStatics::TryLoad<USkeletalMesh>(TEXT("/Game/TPS/Characters/SK_Manny.SK_Manny"))
+			: UTPSStatics::TryLoad<USkeletalMesh>(TEXT("/Game/TPS/Characters/SK_Mannequin.SK_Mannequin"));
+		if (BodyMesh)
 		{
-			SkMesh->SetSkeletalMeshAsset(Manny);
+			// A user AnimBP named ABP_TPS wins; otherwise the built-in procedural animation drives the clips.
+			UClass* AnimClass = UTPSStatics::TryLoad<UClass>(TEXT("/Game/TPS/Animations/ABP_TPS.ABP_TPS_C"));
+			if (!AnimClass || !AnimClass->IsChildOf(UAnimInstance::StaticClass()))
+			{
+				AnimClass = UTPSProceduralAnimInstance::StaticClass();
+			}
+			SkMesh->SetSkeletalMeshAsset(BodyMesh);
+			SkMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 			SkMesh->SetAnimInstanceClass(AnimClass);
 		}
 	}
@@ -299,12 +307,47 @@ void ATPSCharacter::ToggleCrouch()
 	}
 }
 
+UTPSProceduralAnimInstance* ATPSCharacter::GetProceduralAnim() const
+{
+	return GetMesh() ? Cast<UTPSProceduralAnimInstance>(GetMesh()->GetAnimInstance()) : nullptr;
+}
+
+bool ATPSCharacter::IsUpperBodyActionActive() const
+{
+	const UTPSProceduralAnimInstance* Proc = GetProceduralAnim();
+	if (Proc)
+	{
+		return Proc->IsUpperBodyActionActive();
+	}
+	const UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	return AnimInstance && AnimInstance->IsSlotActive(UTPSAnimInstance::UpperBodySlot);
+}
+
+float ATPSCharacter::GetTimeSinceHit() const
+{
+	const UWorld* World = GetWorld();
+	return World ? World->GetTimeSeconds() - LastHitTime : 1000.f;
+}
+
+float ATPSCharacter::PlayTraversalAnim(UAnimSequenceBase* Anim, float PlayRate, int32 Loops, const FVector& WorldDisplacement, bool bHasDisplacement)
+{
+	if (UTPSProceduralAnimInstance* Proc = GetProceduralAnim())
+	{
+		return (Anim && bHasSkeletalVisual) ? Proc->PlayAction(Anim, PlayRate, Loops, false, 0.12f, 0.2f, WorldDisplacement, bHasDisplacement) : 0.f;
+	}
+	return PlayActionAnim(Anim, PlayRate, Loops, false, 0.12f, 0.2f);
+}
+
 float ATPSCharacter::PlayActionAnim(UAnimSequenceBase* Anim, float PlayRate, int32 Loops, bool bUpperBodyOnly, float BlendIn, float BlendOut)
 {
 	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
 	if (!Anim || !AnimInstance || !bHasSkeletalVisual)
 	{
 		return 0.f;
+	}
+	if (UTPSProceduralAnimInstance* Proc = Cast<UTPSProceduralAnimInstance>(AnimInstance))
+	{
+		return Proc->PlayAction(Anim, PlayRate, Loops, bUpperBodyOnly, BlendIn, BlendOut, FVector::ZeroVector, false);
 	}
 	const float Rate = FMath::Max(PlayRate, 0.01f);
 	if (UAnimMontage* AsMontage = Cast<UAnimMontage>(Anim))
@@ -319,6 +362,11 @@ float ATPSCharacter::PlayActionAnim(UAnimSequenceBase* Anim, float PlayRate, int
 
 void ATPSCharacter::StopActionAnim(float BlendOut)
 {
+	if (UTPSProceduralAnimInstance* Proc = GetProceduralAnim())
+	{
+		Proc->StopAction(BlendOut);
+		return;
+	}
 	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
 		AnimInstance->Montage_Stop(BlendOut);
@@ -327,6 +375,11 @@ void ATPSCharacter::StopActionAnim(float BlendOut)
 
 void ATPSCharacter::SetActionAnimRate(float PlayRate)
 {
+	if (UTPSProceduralAnimInstance* Proc = GetProceduralAnim())
+	{
+		Proc->SetActionRate(PlayRate);
+		return;
+	}
 	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
 		if (UAnimMontage* Current = AnimInstance->GetCurrentActiveMontage())
@@ -338,6 +391,11 @@ void ATPSCharacter::SetActionAnimRate(float PlayRate)
 
 void ATPSCharacter::SetActionAnimPaused(bool bPaused)
 {
+	if (UTPSProceduralAnimInstance* Proc = GetProceduralAnim())
+	{
+		Proc->SetActionPaused(bPaused);
+		return;
+	}
 	if (UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 	{
 		if (UAnimMontage* Current = AnimInstance->GetCurrentActiveMontage())
@@ -377,6 +435,10 @@ float ATPSCharacter::ReceiveDirectDamage(float Damage, FVector SourceLocation, E
 	}
 	const float Applied = Health->ApplyDamage(Damage, SourceLocation, Zone, Shooter ? Shooter->GetController() : nullptr);
 	bOutKilled = IsDead();
+	if (Applied > 0.f && GetWorld())
+	{
+		LastHitTime = GetWorld()->GetTimeSeconds();
+	}
 	if (!bOutKilled && Applied > 0.f && AnimSet.HitReact && !(Traversal && Traversal->IsBusy()))
 	{
 		PlayActionAnim(AnimSet.HitReact, 1.f, 1, true, 0.05f, 0.15f);
@@ -423,7 +485,7 @@ void ATPSCharacter::HandleDeath(AActor* Victim, AController* Killer, bool bHeads
 	if (bHasSkeletalVisual)
 	{
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		if (AnimSet.Death && AnimInstance)
+		if (AnimSet.Death && AnimInstance && !Cast<UTPSProceduralAnimInstance>(AnimInstance))
 		{
 			if (UAnimMontage* Montage = AnimInstance->PlaySlotAnimationAsDynamicMontage(AnimSet.Death, UTPSAnimInstance::FullBodySlot, 0.1f, 0.f, 1.f, 1))
 			{
@@ -470,7 +532,8 @@ bool ATPSCharacter::IsAimingWeapon() const
 
 USceneComponent* ATPSCharacter::GetWeaponAttachParent(FName& OutSocket) const
 {
-	if (bHasSkeletalVisual && WeaponSocket != NAME_None && GetMesh()->DoesSocketExist(WeaponSocket))
+	// The procedural animation places the weapon between the hands every frame (UTPSCombatComponent).
+	if (bHasSkeletalVisual && !GetProceduralAnim() && WeaponSocket != NAME_None && GetMesh()->DoesSocketExist(WeaponSocket))
 	{
 		OutSocket = WeaponSocket;
 		return GetMesh();

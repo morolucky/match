@@ -46,8 +46,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Weapon") FTPSWeaponStats Stats;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Weapon") FTPSWeaponAudio Audio;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Weapon") FTPSWeaponAnims Anims;
-	/** Relative transform when attached to the character's hand socket. */
+	/** Relative transform when attached to a hand socket (custom AnimBP without hand placement). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Weapon") FTransform GripOffset;
+	/** Weapon-space points where the right wrist (hand_r) and the left/support wrist (hand_l) hold the weapon. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Weapon") FVector RightHandGrip = FVector(12.f, 0.f, -4.f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Weapon") FVector LeftHandGrip = FVector(40.f, 0.f, 0.f);
+	/** Long guns are aimed by both hands; one-handed weapons point straight at the aim. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|Weapon") bool bTwoHanded = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|FX") TObjectPtr<UNiagaraSystem> MuzzleFlashFX;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TPS|FX") TObjectPtr<UNiagaraSystem> ImpactFX;
@@ -83,6 +88,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "TPS|Weapon") float GetRecoilAlpha() const { return RecoilAlpha; }
 	UFUNCTION(BlueprintPure, Category = "TPS|Weapon") FVector GetMuzzleLocation() const;
 	UFUNCTION(BlueprintPure, Category = "TPS|Weapon") bool CanFireNow() const;
+	/** 0 right after equipping, 1 once ready to fire (drives the raise animation). */
+	UFUNCTION(BlueprintPure, Category = "TPS|Weapon") float GetReadyAlpha() const;
 
 	ATPSCharacter* GetOwningCharacter() const;
 
@@ -105,6 +112,7 @@ protected:
 	bool bFiredThisPull = false;
 	bool bEquippedState = false;
 	float ReadyTime = 0.f;
+	float EquipDuration = 0.f;
 	float NextFireTime = 0.f;
 	float Bloom = 0.f;
 	float RecoilAlpha = 0.f;

@@ -145,6 +145,10 @@ void ATPSWeapon::BeginPlay()
 	{
 		Stats = MakePresetStats(Preset);
 	}
+	if (Preset != ETPSWeaponPreset::Custom)
+	{
+		bTwoHanded = Stats.PoseType != ETPSWeaponPoseType::Pistol;
+	}
 	AutoLoadContent();
 	if (!Mesh->GetStaticMesh() && !SkeletalMesh->GetSkeletalMeshAsset())
 	{
@@ -178,6 +182,31 @@ void ATPSWeapon::AutoLoadContent()
 		}
 	};
 
+	// Weapon meshes baked from the FPS packs by Scripts/bake_fps_weapons.py: origin = right wrist, +X = muzzle.
+	auto BakedMesh = [this](const TCHAR* Name, const FVector& MuzzlePoint, const FVector& LeftHand, const FVector& RightHand)
+	{
+		if (Mesh->GetStaticMesh() || SkeletalMesh->GetSkeletalMeshAsset())
+		{
+			return;
+		}
+		if (UStaticMesh* Baked = UTPSStatics::TryLoad<UStaticMesh>(FString::Printf(TEXT("/Game/TPS/Weapons/%s.%s"), Name, Name)))
+		{
+			Mesh->SetStaticMesh(Baked);
+			Muzzle->SetRelativeLocation(MuzzlePoint);
+			ShellEject->SetRelativeLocation(FVector(6.f, 3.f, 3.f));
+			RightHandGrip = RightHand;
+			LeftHandGrip = LeftHand;
+		}
+	};
+	switch (Preset)
+	{
+	case ETPSWeaponPreset::M4: BakedMesh(TEXT("SM_M4"), FVector(68.68f, -2.80f, 6.92f), FVector(32.20f, -9.21f, 2.84f), FVector::ZeroVector); break;
+	case ETPSWeaponPreset::AK74M: BakedMesh(TEXT("SM_AK74M"), FVector(75.64f, -6.04f, -3.60f), FVector(31.23f, -9.26f, -1.06f), FVector::ZeroVector); break;
+	// The Benelli pack's hand bones sit on the receiver; grip points measured from the mesh instead.
+	case ETPSWeaponPreset::BenelliM4: BakedMesh(TEXT("SM_BenelliM4"), FVector(51.22f, -0.16f, 1.07f), FVector(22.f, 0.f, -3.f), FVector(-20.f, 0.f, -6.f)); break;
+	default: break;
+	}
+
 	// Same sample routing as the web build's audio.js.
 	switch (Preset)
 	{
@@ -194,6 +223,7 @@ void ATPSWeapon::AutoLoadContent()
 		Sound(Audio.Fire, TEXT("rifle_shot")); Sound(Audio.FireTail, TEXT("rifle_tail")); Sound(Audio.Cycle, TEXT("slide_rack")); Sound(Audio.MagIn, TEXT("mag_in"));
 		Audio.FirePitch = 0.65f;
 		Anim(Anims.Reload, TEXT("A_TP_CH_Shotgun_01_Reload_Bolt")); Anim(Anims.ReloadEmpty, TEXT("A_TP_CH_Shotgun_01_Reload_Bolt"));
+		Anim(Anims.Cycle, TEXT("A_TP_CH_Shotgun_01_Reload_Bolt"));
 		break;
 	case ETPSWeaponPreset::BenelliM4:
 		Sound(Audio.Fire, TEXT("rifle_shot")); Sound(Audio.FireTail, TEXT("rifle_tail")); Sound(Audio.Cycle, TEXT("slide_rack")); Sound(Audio.MagIn, TEXT("mag_in"));
@@ -228,6 +258,7 @@ void ATPSWeapon::BuildPlaceholderVisual()
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(4.f, 0.f, 3.f), FVector(0.2f, 0.035f, 0.045f), FRotator::ZeroRotator, Metal, false);
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(-3.f, 0.f, -3.f), FVector(0.045f, 0.03f, 0.1f), FRotator(-15.f, 0.f, 0.f), Metal, false);
 		Muzzle->SetRelativeLocation(FVector(15.f, 0.f, 3.5f));
+		RightHandGrip = FVector(-5.f, 0.f, -7.f); LeftHandGrip = FVector(-3.f, -4.f, -8.f);
 		break;
 	case ETPSWeaponPoseType::Shotgun:
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(14.f, 0.f, 2.f), FVector(0.45f, 0.05f, 0.08f), FRotator::ZeroRotator, Metal, false);
@@ -235,17 +266,20 @@ void ATPSWeapon::BuildPlaceholderVisual()
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(40.f, 0.f, -1.f), FVector(0.22f, 0.045f, 0.045f), FRotator::ZeroRotator, Wood, false);
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(-18.f, 0.f, -1.f), FVector(0.26f, 0.04f, 0.1f), FRotator(-8.f, 0.f, 0.f), Wood, false);
 		Muzzle->SetRelativeLocation(FVector(70.f, 0.f, 3.f));
+		RightHandGrip = FVector(-8.f, 0.f, -5.f); LeftHandGrip = FVector(40.f, 0.f, -3.f);
 		break;
 	case ETPSWeaponPoseType::Sniper:
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(10.f, 0.f, 0.f), FVector(0.7f, 0.045f, 0.07f), FRotator::ZeroRotator, Wood, false);
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cylinder, FVector(60.f, 0.f, 3.f), FVector(0.022f, 0.022f, 0.4f), AlongX, Metal, false);
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cylinder, FVector(8.f, 0.f, 9.f), FVector(0.04f, 0.04f, 0.3f), AlongX, Metal, false);
 		Muzzle->SetRelativeLocation(FVector(80.f, 0.f, 3.f));
+		RightHandGrip = FVector(-4.f, 0.f, -4.f); LeftHandGrip = FVector(32.f, 0.f, -2.f);
 		break;
 	case ETPSWeaponPoseType::Launcher:
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cylinder, FVector(10.f, 0.f, 6.f), FVector(0.09f, 0.09f, 1.f), AlongX, Olive, false);
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cone, FVector(68.f, 0.f, 6.f), FVector(0.14f, 0.14f, 0.2f), FRotator(-90.f, 0.f, 0.f), Olive * 1.4f, false);
 		Muzzle->SetRelativeLocation(FVector(78.f, 0.f, 6.f));
+		RightHandGrip = FVector(4.f, 0.f, -6.f); LeftHandGrip = FVector(32.f, 0.f, -5.f);
 		break;
 	default:
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(12.f, 0.f, 2.f), FVector(0.5f, 0.05f, 0.09f), FRotator::ZeroRotator, Metal, false);
@@ -253,6 +287,7 @@ void ATPSWeapon::BuildPlaceholderVisual()
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(16.f, 0.f, -7.f), FVector(0.05f, 0.035f, 0.14f), FRotator(15.f, 0.f, 0.f), Metal, false);
 		UTPSStatics::AddShape(this, KickRoot, ETPSShape::Cube, FVector(-20.f, 0.f, -1.f), FVector(0.22f, 0.04f, 0.09f), FRotator::ZeroRotator, Metal, false);
 		Muzzle->SetRelativeLocation(FVector(62.f, 0.f, 3.f));
+		RightHandGrip = FVector(12.f, 0.f, -6.f); LeftHandGrip = FVector(40.f, 0.f, -1.f);
 		break;
 	}
 }
@@ -280,6 +315,7 @@ void ATPSWeapon::SetEquipped(bool bEquipped, float ReadyDelay)
 	if (bEquipped)
 	{
 		ReadyTime = GetNow() + ReadyDelay;
+		EquipDuration = ReadyDelay;
 	}
 	else
 	{
@@ -287,6 +323,15 @@ void ATPSWeapon::SetEquipped(bool bEquipped, float ReadyDelay)
 		ReleaseTrigger();
 		MuzzleLight->SetVisibility(false);
 	}
+}
+
+float ATPSWeapon::GetReadyAlpha() const
+{
+	if (EquipDuration <= 0.f)
+	{
+		return 1.f;
+	}
+	return FMath::Clamp(1.f - (ReadyTime - GetNow()) / EquipDuration, 0.f, 1.f);
 }
 
 bool ATPSWeapon::CanFireNow() const

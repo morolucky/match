@@ -87,7 +87,7 @@ private:
 	void TickDive();
 	void TickLadder(float DeltaTime);
 	void SetLadderPhase(ETPSLadderPhase Phase);
-	float PlayClip(UAnimSequenceBase* Clip, float FallbackTime, float Rate = 1.f, int32 Loops = 1);
+	float PlayClip(UAnimSequenceBase* Clip, float FallbackTime, float Rate = 1.f, int32 Loops = 1, const FVector& Displacement = FVector::ZeroVector, bool bHasDisplacement = false);
 	ATPSLadder* FindLadder(bool& bOutAtTop) const;
 	FVector LadderPoint(float FeetHeight, float ForwardOffset) const;
 	float GetHalfHeight() const;

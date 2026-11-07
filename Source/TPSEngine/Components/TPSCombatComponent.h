@@ -64,6 +64,7 @@ private:
 	void AttachWeapon(ATPSWeapon* Weapon) const;
 	ATPSCharacter* GetOwnerCharacter() const;
 	bool IsOwnerBusy() const;
+	void PlaceWeaponInHands(ATPSCharacter* OwnerChar, ATPSWeapon* Weapon);
 
 	UPROPERTY() TArray<TObjectPtr<ATPSWeapon>> Weapons;
 	int32 CurrentSlot = -1;
@@ -71,4 +72,7 @@ private:
 	float AimAlpha = 0.f;
 	float FireAimTimer = 0.f;
 	bool bTriggerDown = false;
+
+	FTransform HandRelative = FTransform::Identity;
+	TWeakObjectPtr<ATPSWeapon> HandRelativeWeapon;
 };

@@ -5,10 +5,13 @@
 #include "Core/TPSSettings.h"
 #include "Engine/World.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 UTPSCombatComponent::UTPSCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	// Runs after animation so the weapon follows this frame's hand pose.
+	PrimaryComponentTick.TickGroup = TG_PostUpdateWork;
 	DefaultPresets = {
 		ETPSWeaponPreset::Pistol, ETPSWeaponPreset::M4, ETPSWeaponPreset::Shotgun, ETPSWeaponPreset::Kar98k,
 		ETPSWeaponPreset::RPG7, ETPSWeaponPreset::AK74M, ETPSWeaponPreset::BenelliM4 };
@@ -295,11 +298,62 @@ void UTPSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 	}
 	AimAlpha = FMath::FInterpTo(AimAlpha, IsAiming() ? 1.f : 0.f, DeltaTime, AimInterpSpeed);
 
-	// Without a skeleton the weapon floats in front of the chest and follows the aim pitch.
 	ATPSCharacter* OwnerChar = GetOwnerCharacter();
+	ATPSWeapon* Current = GetCurrentWeapon();
+	if (OwnerChar && Current && OwnerChar->HasSkeletalVisual() && OwnerChar->GetProceduralAnim() && !OwnerChar->IsDead())
+	{
+		PlaceWeaponInHands(OwnerChar, Current);
+	}
+
+	// Without a skeleton the weapon floats in front of the chest and follows the aim pitch.
 	if (OwnerChar && !OwnerChar->HasSkeletalVisual() && OwnerChar->WeaponHolder && !OwnerChar->IsDead())
 	{
 		const float Pitch = FRotator::NormalizeAxis(OwnerChar->GetBaseAimRotation().Pitch);
 		OwnerChar->WeaponHolder->SetRelativeLocationAndRotation(FMath::Lerp(HipHoldOffset, AimHoldOffset, AimAlpha), FRotator(Pitch, 0.f, 0.f));
 	}
+}
+
+void UTPSCombatComponent::PlaceWeaponInHands(ATPSCharacter* OwnerChar, ATPSWeapon* Weapon)
+{
+	static const FName HandR(TEXT("hand_r"));
+	static const FName HandL(TEXT("hand_l"));
+	USkeletalMeshComponent* SkMesh = OwnerChar->GetMesh();
+	if (!SkMesh || !SkMesh->DoesSocketExist(HandR))
+	{
+		return;
+	}
+	USceneComponent* WeaponRoot = Weapon->GetRootComponent();
+	if (WeaponRoot && WeaponRoot->GetAttachParent() != OwnerChar->WeaponHolder)
+	{
+		Weapon->AttachToComponent(OwnerChar->WeaponHolder, FAttachmentTransformRules::KeepWorldTransform);
+	}
+
+	const FTransform HandRT = SkMesh->GetSocketTransform(HandR);
+	const bool bTraversing = OwnerChar->Traversal && OwnerChar->Traversal->IsBusy();
+	const bool bFollowHand = OwnerChar->IsUpperBodyActionActive() || bTraversing || Weapon->IsReloading();
+	if (bFollowHand && HandRelativeWeapon.Get() == Weapon)
+	{
+		// Reloads and traversal clips move the hands; the weapon stays in the right hand's grip.
+		const FTransform InHand = HandRelative * HandRT;
+		Weapon->SetActorLocationAndRotation(InHand.GetLocation(), InHand.GetRotation());
+		return;
+	}
+
+	FQuat Rot = OwnerChar->GetAnimAimRotation().Quaternion();
+	const FVector WeaponSpan = Weapon->LeftHandGrip - Weapon->RightHandGrip;
+	if (Weapon->bTwoHanded && SkMesh->DoesSocketExist(HandL) && WeaponSpan.SizeSquared() > 25.f)
+	{
+		const FVector Span = SkMesh->GetSocketLocation(HandL) - HandRT.GetLocation();
+		if (Span.SizeSquared() > 25.f)
+		{
+			// Map the weapon's right-to-left grip line onto the character's wrist-to-wrist line.
+			const FQuat WeaponFrame = FRotationMatrix::MakeFromXZ(WeaponSpan, FVector::UpVector).ToQuat();
+			const FQuat WorldFrame = FRotationMatrix::MakeFromXZ(Span, OwnerChar->GetActorUpVector()).ToQuat();
+			Rot = WorldFrame * WeaponFrame.Inverse();
+		}
+	}
+	const FVector Loc = HandRT.GetLocation() - Rot.RotateVector(Weapon->RightHandGrip);
+	Weapon->SetActorLocationAndRotation(Loc, Rot);
+	HandRelative = FTransform(Rot, Loc).GetRelativeTransform(HandRT);
+	HandRelativeWeapon = Weapon;
 }
