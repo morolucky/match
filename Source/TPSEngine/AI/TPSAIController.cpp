@@ -34,6 +34,11 @@ float ATPSAIController::Now() const
 	return World ? World->GetTimeSeconds() : 0.f;
 }
 
+void ATPSAIController::SetDirector(ATPSAIDirector* InDirector)
+{
+	Director = InDirector;
+}
+
 void ATPSAIController::SetDifficulty(float InSigma, float InReact, int32 InMissShots)
 {
 	// Per-soldier variation, as in the web build.
@@ -53,20 +58,26 @@ void ATPSAIController::OnPossess(APawn* InPawn)
 	}
 	HomeLocation = E->GetActorLocation();
 	Seed = FMath::RandRange(0, 1000);
-	E->Health->OnDamaged.AddDynamic(this, &ATPSAIController::HandleDamaged);
-	E->OnCharacterDied.AddDynamic(this, &ATPSAIController::HandleDied);
+	E->Health->OnDamaged.AddUniqueDynamic(this, &ATPSAIController::HandleDamaged);
+	E->OnCharacterDied.AddUniqueDynamic(this, &ATPSAIController::HandleDied);
 	Player = UTPSStatics::GetTPSPlayer(this);
 	SetState(ETPSAIState::Patrol);
 }
 
 void ATPSAIController::OnUnPossess()
 {
+	if (ATPSEnemyCharacter* E = Enemy.Get())
+	{
+		E->Health->OnDamaged.RemoveDynamic(this, &ATPSAIController::HandleDamaged);
+		E->OnCharacterDied.RemoveDynamic(this, &ATPSAIController::HandleDied);
+	}
 	ReleaseCover();
 	if (bHasShooterSlot && Director.IsValid())
 	{
 		Director->ReleaseShooterSlot(this);
 	}
 	bHasShooterSlot = false;
+	Enemy = nullptr;
 	Super::OnUnPossess();
 }
 

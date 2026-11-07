@@ -3,6 +3,7 @@
 #include "Components/PointLightComponent.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 

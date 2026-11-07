@@ -8,6 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/RootMotionSource.h"
 #include "CollisionQueryParams.h"
 

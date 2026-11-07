@@ -50,9 +50,7 @@ void ATPSGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 	}
 	if (!Arena && bAutoBuildArena && !bLevelHasGeometry)
 	{
-		FActorSpawnParameters Params;
-		Params.Name = TEXT("TPSArenaBuilder");
-		Arena = World->SpawnActor<ATPSArenaBuilder>(ATPSArenaBuilder::StaticClass(), FTransform::Identity, Params);
+		Arena = World->SpawnActor<ATPSArenaBuilder>(ATPSArenaBuilder::StaticClass(), FTransform::Identity);
 	}
 	// The player spawns before BeginPlay, so lights and a PlayerStart must exist now.
 	if (Arena)

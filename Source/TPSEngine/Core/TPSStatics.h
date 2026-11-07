@@ -7,6 +7,9 @@
 #include "Core/TPSTypes.h"
 #include "TPSStatics.generated.h"
 
+class AActor;
+class USceneComponent;
+struct FHitResult;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UMaterialInstanceDynamic;

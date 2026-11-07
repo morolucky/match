@@ -311,7 +311,9 @@ void UTPSHUDWidget::AddKillFeed(FText Message, bool bHeadshot)
 	}
 	UTextBlock* Line = Text(WidgetTree, Message.ToString(), 16, bHeadshot ? Head : TextMain, true, ETextJustify::Right);
 	AddRow(KillFeedBox, Line, FMargin(0.f, 2.f), HAlign_Right);
-	Feed.Add({ Line, 0.f });
+	FTPSHUDFeedLine Entry;
+	Entry.Text = Line;
+	Feed.Add(Entry);
 	while (Feed.Num() > 5)
 	{
 		if (UTextBlock* Old = Feed[0].Text.Get())
@@ -347,7 +349,7 @@ void UTPSHUDWidget::HandleDamaged(float Damage, FVector SourceLocation, ETPSHitZ
 	DamageFlash = FMath::Min(1.f, DamageFlash + Damage / 40.f);
 	if (Arrows.Num() > 0)
 	{
-		FDamageArrow& Arrow = Arrows[NextArrow++ % Arrows.Num()];
+		FTPSHUDDamageArrow& Arrow = Arrows[NextArrow++ % Arrows.Num()];
 		Arrow.Source = SourceLocation;
 		Arrow.Age = 0.f;
 	}
@@ -395,7 +397,7 @@ void UTPSHUDWidget::UpdatePopups(float DeltaTime)
 	const float Scale = FMath::Max(0.1f, UWidgetLayoutLibrary::GetViewportScale(this));
 	for (int32 i = 0; i < Popups.Num(); ++i)
 	{
-		FPopup& Pop = Popups[i];
+		FTPSHUDPopup& Pop = Popups[i];
 		UTextBlock* Txt = PopupTexts[i];
 		if (Pop.Age >= 1.2f || !PC)
 		{
@@ -509,7 +511,7 @@ void UTPSHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	const float CamYaw = (PC && PC->PlayerCameraManager) ? PC->PlayerCameraManager->GetCameraRotation().Yaw : 0.f;
 	for (int32 i = 0; i < Arrows.Num(); ++i)
 	{
-		FDamageArrow& Arrow = Arrows[i];
+		FTPSHUDDamageArrow& Arrow = Arrows[i];
 		Arrow.Age += InDeltaTime;
 		if (Arrow.Age >= 1.2f || !Player)
 		{

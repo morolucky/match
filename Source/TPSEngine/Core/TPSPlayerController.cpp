@@ -362,7 +362,8 @@ void ATPSPlayerController::PlayerTick(float DeltaTime)
 
 void ATPSPlayerController::OnMove(const FInputActionValue& Value)
 {
-	MoveInput = Value.Get<FVector2D>().GetClampedToMaxSize(1.f);
+	const FVector2D Input = Value.Get<FVector2D>();
+	MoveInput = Input.SizeSquared() > 1.0 ? Input.GetSafeNormal() : Input;
 }
 
 void ATPSPlayerController::OnMoveStop(const FInputActionValue& Value)

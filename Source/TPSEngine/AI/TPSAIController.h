@@ -31,7 +31,7 @@ public:
 
 	/** Difficulty from the director (spread sigma in radians, reaction seconds, opening misses). */
 	void SetDifficulty(float InSigma, float InReact, int32 InMissShots);
-	void SetDirector(ATPSAIDirector* InDirector) { Director = InDirector; }
+	void SetDirector(ATPSAIDirector* InDirector);
 	void AlertTo(const FVector& Location);
 
 	void OnHeardNoise(const FVector& Location, float Radius, AActor* NoiseInstigator);

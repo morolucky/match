@@ -15,6 +15,25 @@ class UHorizontalBox;
 class UBorder;
 class UButton;
 class ATPSPlayerCharacter;
+class AController;
+
+struct FTPSHUDPopup
+{
+	FVector World = FVector::ZeroVector;
+	float Age = 10.f;
+};
+
+struct FTPSHUDDamageArrow
+{
+	FVector Source = FVector::ZeroVector;
+	float Age = 10.f;
+};
+
+struct FTPSHUDFeedLine
+{
+	TWeakObjectPtr<UTextBlock> Text;
+	float Age = 0.f;
+};
 
 /**
  * In-game HUD built in C++ (no widget asset needed): top bar (time, score, accuracy, wave, kills left),
@@ -100,16 +119,13 @@ private:
 
 	TWeakObjectPtr<ATPSPlayerCharacter> BoundPlayer;
 
-	struct FPopup { FVector World; float Age = 10.f; };
-	TArray<FPopup> Popups;
+	TArray<FTPSHUDPopup> Popups;
 	int32 NextPopup = 0;
 
-	struct FDamageArrow { FVector Source; float Age = 10.f; };
-	TArray<FDamageArrow> Arrows;
+	TArray<FTPSHUDDamageArrow> Arrows;
 	int32 NextArrow = 0;
 
-	struct FFeedLine { TWeakObjectPtr<UTextBlock> Text; float Age = 0.f; };
-	TArray<FFeedLine> Feed;
+	TArray<FTPSHUDFeedLine> Feed;
 
 	float HitMarkerAge = 10.f;
 	float DamageFlash = 0.f;
