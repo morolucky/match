@@ -1,7 +1,8 @@
 """
 TPS Engine - one-click asset import (run inside the Unreal Editor).
 
-    Tools > Execute Python Script...  ->  Scripts/import_tps_assets.py
+    Runs automatically the first time the project opens (Content/Python/init_unreal.py).
+    To re-run manually: Tools > Execute Python Script...  ->  Scripts/import_tps_assets.py
     (or in the Output Log, Python mode:  py "Scripts/import_tps_assets.py")
 
 Imports everything in SourceAssets/ to the paths the C++ code auto-loads:
@@ -168,7 +169,9 @@ def main():
             except Exception as exc:  # noqa: BLE001 - keep importing the rest
                 unreal.log_warning("[TPS import] skipped " + glb + ": " + str(exc))
 
+    unreal.EditorAssetLibrary.save_directory("/Game/TPS", only_if_is_dirty=True, recursive=True)
     log("done - press Play")
 
 
-main()
+if __name__ == "__main__":
+    main()

@@ -30,7 +30,8 @@ Everything is written in C++ with Blueprint extension points. No `.uasset` files
 2. Right-click `TPSEngine.uproject` → **Generate Visual Studio project files**, then open `TPSEngine.sln` and build **Development Editor | Win64**
    (or double-click the `.uproject` and let the editor build the module).
 3. Press **Play**. The startup map is the engine's empty `Entry` map, and the arena is built automatically.
-4. Run `Scripts/import_tps_assets.py` in the editor (**Tools → Execute Python Script**) and press **Play** again.
+4. On the first open, the editor imports the mannequin, animations, weapons, and sounds automatically (about a minute).
+   To re-run the import, use **Tools → Execute Python Script → `Scripts/import_tps_assets.py`**. Press **Play** again afterwards.
    The mannequin, all animations, weapon models, and sounds are now used. No AnimBP is needed. See [Docs/SETUP.md](Docs/SETUP.md).
 
 ## Controls

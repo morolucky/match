@@ -24,8 +24,10 @@ drop a **NavMeshBoundsVolume** that covers the arena (about X −1400…5200, Y 
 the 7 sounds (converted to WAV, because Unreal does not import MP3), the 3 first-person GLB packs, and the
 third-person weapon meshes baked from those packs.
 
-1. Enable **Python Editor Script Plugin** if it is not enabled (the `.uproject` already lists it).
-2. **Tools → Execute Python Script…** → `Scripts/import_tps_assets.py`.
+1. Open the project. **On the first open, the import runs by itself** (`Content/Python/init_unreal.py`, about a minute, with a progress dialog).
+   To run it again by hand, use **Tools → Execute Python Script…** and pick `Scripts/import_tps_assets.py` inside the project folder.
+   Or type this in the Output Log (switch the input from *Cmd* to *Python*): `py "Scripts/import_tps_assets.py"`.
+2. Wait for `[TPS import] done - press Play` in the **Output Log**.
 3. Press **Play**. No AnimBP and no manual setup are needed. The player and the AI switch to the mannequin, and every clip below plays automatically.
 
 | Asset | Path | Used for |
