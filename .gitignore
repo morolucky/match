@@ -1,0 +1,27 @@
+# Unreal Engine
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+Build/
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# IDE / generated
+.vs/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.sdf
+*.VC.db
+*.opendb
+*.code-workspace
+compile_commands.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hoplite attachments
+.hoplite/
